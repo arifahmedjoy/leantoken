@@ -3,24 +3,36 @@ description: Suggest an improvement to LeanToken.
 title: "[Feature]: "
 labels: ["enhancement"]
 body:
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Output pruning (lean prune / auto-prune hook)
+        - Setup and removal (init, doctor, remove, uninstall)
+        - Agent directive
+        - Symbol outlines (lean symbols)
+        - Session learner (lean learn)
+        - Stats and statusline
+        - Documentation
+        - Other
+    validations:
+      required: true
   - type: textarea
     id: problem
     attributes:
       label: Problem
-      description: What user problem or workflow should this address?
+      description: What are you trying to do, and what gets in the way? Token counts or example output help.
     validations:
       required: true
   - type: textarea
     id: proposal
     attributes:
       label: Proposed solution
-      description: Describe the behavior you would like to see.
+      description: The behavior you would like to see.
     validations:
       required: true
   - type: textarea
     id: alternatives
     attributes:
       label: Alternatives considered
-      description: Any alternative approaches or constraints?
-    validations:
-      required: false

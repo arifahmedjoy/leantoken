@@ -1,33 +1,78 @@
 name: Bug report
-description: Report a reproducible problem with LeanToken.
+description: Something in LeanToken does not work as documented.
 title: "[Bug]: "
 labels: ["bug"]
 body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. Please run `lean doctor` first: it often names the problem and its fix.
+        Security issues: do not file them here. Use [private vulnerability reporting](https://github.com/arifahmedjoy/leantoken/security/advisories/new).
   - type: textarea
     id: description
     attributes:
       label: What happened?
-      description: Describe the observed behavior and what you expected instead.
+      description: What you saw, and what you expected instead.
     validations:
       required: true
   - type: textarea
     id: reproduce
     attributes:
       label: Steps to reproduce
-      description: Provide the smallest steps or input needed to reproduce this issue.
+      description: The smallest commands or input that show the problem.
+      placeholder: |
+        1. lean init --only=claude
+        2. In Claude Code, run `npm test`
+        3. ...
     validations:
       required: true
   - type: input
-    id: environment
+    id: version
     attributes:
-      label: Environment
-      description: Include Node.js version, operating system, and LeanToken version or commit.
+      label: LeanToken version
+      description: Output of `lean --version`.
+      placeholder: "0.2.1"
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options: [Windows, macOS, Linux, WSL, Other]
+    validations:
+      required: true
+  - type: dropdown
+    id: tools
+    attributes:
+      label: AI tool(s) involved
+      multiple: true
+      options:
+        - Claude Code
+        - GitHub Copilot
+        - Gemini CLI / Antigravity
+        - OpenCode
+        - Codex
+        - Cursor
+        - Windsurf
+        - Cline
+        - JetBrains Junie
+        - None (CLI only)
+        - Other
+  - type: dropdown
+    id: install
+    attributes:
+      label: How is LeanToken installed?
+      options: [npm install -g, npx, From a checkout (npm link), Other]
     validations:
       required: true
   - type: textarea
+    id: doctor
+    attributes:
+      label: Output of `lean doctor`
+      render: text
+  - type: textarea
     id: logs
     attributes:
-      label: Relevant output
-      description: Remove secrets and private data before sharing logs.
-    validations:
-      required: false
+      label: Other relevant output
+      description: Remove secrets, private code and paths you do not want public. Raw logs in `.lean/logs/` contain full command output.
+      render: text

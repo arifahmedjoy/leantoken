@@ -1,0 +1,14 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security vulnerability
+    url: https://github.com/arifahmedjoy/leantoken/security/advisories/new
+    about: Report privately. Do not open a public issue for security problems.
+  - name: Usage guide
+    url: https://github.com/arifahmedjoy/leantoken/blob/main/docs/usage.md
+    about: Every command and option, plus where LeanToken stores data.
+  - name: Changelog
+    url: https://github.com/arifahmedjoy/leantoken/blob/main/CHANGELOG.md
+    about: Check whether your problem is already fixed in a newer version.
+  - name: npm package
+    url: https://www.npmjs.com/package/@arifahmedjoy/leantoken
+    about: Install and version information.

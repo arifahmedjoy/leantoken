@@ -1,0 +1,30 @@
+name: AI tool or editor support
+description: Ask for LeanToken to support another AI coding tool, or to improve support for one.
+title: "[Integration]: "
+labels: ["integration"]
+body:
+  - type: markdown
+    attributes:
+      value: See the [integration plan](https://github.com/arifahmedjoy/leantoken/blob/main/docs/11-integration-plan.md) for what each tool supports today.
+  - type: input
+    id: tool
+    attributes:
+      label: Tool and version
+      placeholder: "e.g. Zed 0.180, Aider 0.80"
+    validations:
+      required: true
+  - type: input
+    id: instructions
+    attributes:
+      label: Where does it read instructions from?
+      description: Project and user-level file paths, with a link to the tool's docs if you have one.
+      placeholder: ".rules (project), ~/.config/zed/... (user)"
+  - type: textarea
+    id: hooks
+    attributes:
+      label: Can it run a hook after a shell command?
+      description: Automatic pruning needs a hook that can replace tool output before the agent reads it. Link the docs if it has one.
+  - type: textarea
+    id: notes
+    attributes:
+      label: Anything else

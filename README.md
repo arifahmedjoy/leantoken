@@ -1,6 +1,7 @@
 # LeanToken (Zero-Latency Token Optimization Engine)
 
 [![CI](https://github.com/arifahmedjoy/leantoken/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/arifahmedjoy/leantoken/actions/workflows/ci.yml)
+[![npm](https://img.shields.io/npm/v/@arifahmedjoy/leantoken)](https://www.npmjs.com/package/@arifahmedjoy/leantoken)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Node.js 18+](https://img.shields.io/badge/Node.js-18%2B-339933)](https://nodejs.org/)
 
