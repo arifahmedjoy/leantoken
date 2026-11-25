@@ -35,8 +35,12 @@ node bin/lean.js statusline
 - `prune <command...>` runs a command and condenses its output. The original
   output is best-effort stored at `.lean/logs/last-command.log`; accumulated
   statistics are stored in `.lean/stats.json`.
-- `symbols <file|directory>` summarizes supported source files. A directory
-  scan includes matching files in that directory, not nested directories.
+- `symbols <file|directory>` extracts lightweight outlines for JavaScript and
+  TypeScript, Python, PHP, Java, C#, Go, Rust, Ruby, Kotlin, Swift, and C/C++.
+  Other individual files use a generic line-based summary. A directory scan
+  includes supported files in that directory, not nested directories. These
+  lightweight outlines are best-effort and may miss complex or multiline
+  declarations; they are not compiler-grade parsers.
 - `learn [transcript]` analyzes a JSON Lines transcript and writes learned
   patterns to `.lean/MEMORY.md`. Without a path, it checks the supported
   transcript locations in the current working directory.

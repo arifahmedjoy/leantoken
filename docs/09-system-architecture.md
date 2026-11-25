@@ -69,7 +69,7 @@
 
 ### Subsystem 5: Zero-MCP Symbol Indexer (`src/core/symbol_indexer.js`)
 - Eliminates 4,000+ token MCP tool schema overhead.
-- Operates via lightweight Tree-sitter / Regex parsing for TS/JS/Python/Go/Rust.
+- Uses lightweight, dependency-free signature extraction for JavaScript/TypeScript, Python, PHP, Java, C#, Go, Rust, Ruby, Kotlin, Swift, and C/C++; unrecognized files use a generic line summary.
 - Emits signatures: `export function foo(a: string, b: number): Promise<void>`.
 
 ---

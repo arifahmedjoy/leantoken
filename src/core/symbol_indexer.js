@@ -30,10 +30,24 @@ class SymbolIndexer {
     let symbols = [];
     if (['.js', '.jsx', '.ts', '.tsx', '.mjs', '.cjs'].includes(ext)) {
       symbols = this.extractJavaScriptSymbols(content);
-    } else if (['.py'].includes(ext)) {
+    } else if (ext === '.py') {
       symbols = this.extractPythonSymbols(content);
-    } else if (['.php'].includes(ext)) {
+    } else if (['.php', '.phtml'].includes(ext)) {
       symbols = this.extractPhpSymbols(content);
+    } else if (['.java', '.cs'].includes(ext)) {
+      symbols = this.extractJavaLikeSymbols(content);
+    } else if (ext === '.go') {
+      symbols = this.extractGoSymbols(content);
+    } else if (ext === '.rs') {
+      symbols = this.extractRustSymbols(content);
+    } else if (ext === '.rb') {
+      symbols = this.extractRubySymbols(content);
+    } else if (['.kt', '.kts'].includes(ext)) {
+      symbols = this.extractKotlinSymbols(content);
+    } else if (ext === '.swift') {
+      symbols = this.extractSwiftSymbols(content);
+    } else if (['.c', '.h', '.cc', '.cpp', '.cxx', '.hh', '.hpp', '.hxx'].includes(ext)) {
+      symbols = this.extractJavaLikeSymbols(content);
     } else if (['.json'].includes(ext)) {
       symbols = this.extractJsonSchema(content);
     } else {
@@ -78,9 +92,9 @@ class SymbolIndexer {
       }
 
       // Const arrow function or method export
-      const arrowMatch = trimmed.match(/^(?:export\s+)?(?:const|let|var)\s+([A-Za-z0-9_$]+)\s*=\s*(?:async\s*)?\(([^)]*)\)\s*=>/);
+      const arrowMatch = trimmed.match(/^(?:export\s+)?(?:const|let|var)\s+([A-Za-z0-9_$]+)\s*=\s*(?:async\s*)?(?:\(([^)]*)\)|([A-Za-z_$][\w$]*))\s*=>/);
       if (arrowMatch) {
-        symbols.push(`  const ${arrowMatch[1]} = (${arrowMatch[2].trim()}) => ...`);
+        symbols.push(`  const ${arrowMatch[1]} = (${(arrowMatch[2] || arrowMatch[3]).trim()}) => ...`);
         continue;
       }
 
@@ -105,8 +119,8 @@ class SymbolIndexer {
         if (classMatch) {
           symbols.push(`  class ${classMatch[1]}${classMatch[2] ? `(${classMatch[2]})` : ''}`);
         }
-      } else if (trimmed.startsWith('def ')) {
-        const fnMatch = trimmed.match(/^def\s+([A-Za-z0-9_]+)\s*\(([^)]*)\)(?:\s*->\s*([^:]+))?:/);
+      } else {
+        const fnMatch = trimmed.match(/^(?:async\s+)?def\s+([A-Za-z0-9_]+)\s*\(([^)]*)\)(?:\s*->\s*([^:]+))?:/);
         if (fnMatch) {
           const indent = line.search(/\S/) > 0 ? '    def ' : '  def ';
           symbols.push(`${indent}${fnMatch[1]}(${fnMatch[2].trim()})${fnMatch[3] ? ` -> ${fnMatch[3].trim()}` : ''}`);
@@ -125,7 +139,7 @@ class SymbolIndexer {
       const trimmed = line.trim();
 
       // Class or Interface or Trait
-      const classMatch = trimmed.match(/^(?:abstract\s+|final\s+)?(class|interface|trait)\s+([A-Za-z0-9_]+)/);
+      const classMatch = trimmed.match(/^(?:(?:abstract|final|readonly)\s+)*(class|interface|trait|enum)\s+([A-Za-z0-9_]+)/);
       if (classMatch) {
         symbols.push(`  ${classMatch[1]} ${classMatch[2]}`);
         continue;
@@ -136,6 +150,133 @@ class SymbolIndexer {
       if (fnMatch) {
         const indent = line.search(/\S/) > 0 ? '    function ' : '  function ';
         symbols.push(`${indent}${fnMatch[1]}(${fnMatch[2].trim()})`);
+      }
+    }
+
+    return symbols;
+  }
+
+  extractJavaLikeSymbols(code) {
+    const symbols = [];
+    const lines = code.split('\n');
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+      const typeMatch = trimmed.match(/^(?:(?:public|protected|private|abstract|final|static|sealed|non-sealed|partial|typedef)\s+)*(class|interface|enum|record|struct|union|namespace)\s+([A-Za-z_$][\w$]*)/);
+      if (typeMatch) {
+        symbols.push(`  ${typeMatch[1]} ${typeMatch[2]}`);
+        continue;
+      }
+
+      const methodMatch = trimmed.match(/^(?:(?:public|protected|private|static|final|abstract|synchronized|native|default|override|virtual|sealed|async|extern|inline|constexpr|friend|partial|unsafe)\s+)*(?:<[^>]+>\s+)?(?:[\w$.:<>,?*&\[\]]+\s+)+([\w$]+(?:::\w+)*)\s*\(([^)]*)\)/);
+      if (methodMatch && !['if', 'for', 'while', 'switch', 'catch', 'return', 'throw'].includes(methodMatch[1])) {
+        symbols.push(`    method ${methodMatch[1]}(${methodMatch[2].trim()})`);
+      }
+    }
+
+    return symbols;
+  }
+
+  extractGoSymbols(code) {
+    const symbols = [];
+    const lines = code.split('\n');
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+      const typeMatch = trimmed.match(/^type\s+([A-Za-z_]\w*)\s+(struct|interface)\b/);
+      if (typeMatch) {
+        symbols.push(`  ${typeMatch[2]} ${typeMatch[1]}`);
+        continue;
+      }
+
+      const functionMatch = trimmed.match(/^func\s+(?:\(\s*[^)]*\)\s*)?([A-Za-z_]\w*)\s*\(([^)]*)\)/);
+      if (functionMatch) {
+        const isMethod = /^func\s+\(/.test(trimmed);
+        symbols.push(`  ${isMethod ? 'method' : 'function'} ${functionMatch[1]}(${functionMatch[2].trim()})`);
+      }
+    }
+
+    return symbols;
+  }
+
+  extractRustSymbols(code) {
+    const symbols = [];
+    const lines = code.split('\n');
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+      const typeMatch = trimmed.match(/^(?:(?:pub(?:\([^)]*\))?|unsafe)\s+)*(struct|enum|trait|union)\s+([A-Za-z_]\w*)/);
+      if (typeMatch) {
+        symbols.push(`  ${typeMatch[1]} ${typeMatch[2]}`);
+        continue;
+      }
+
+      const functionMatch = trimmed.match(/^(?:(?:pub(?:\([^)]*\))?|async|unsafe|const|extern(?:\s+"[^"]+")?)\s+)*fn\s+([A-Za-z_]\w*)\s*(?:<[^>]*>)?\s*\(([^)]*)\)/);
+      if (functionMatch) {
+        symbols.push(`  function ${functionMatch[1]}(${functionMatch[2].trim()})`);
+      }
+    }
+
+    return symbols;
+  }
+
+  extractRubySymbols(code) {
+    const symbols = [];
+    const lines = code.split('\n');
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+      const typeMatch = trimmed.match(/^(class|module)\s+([A-Z]\w*(?:::\w+)*)/);
+      if (typeMatch) {
+        symbols.push(`  ${typeMatch[1]} ${typeMatch[2]}`);
+        continue;
+      }
+
+      const functionMatch = trimmed.match(/^def\s+(?:self\.)?([A-Za-z_]\w*[!?=]?)\s*(?:\(([^)]*)\))?/);
+      if (functionMatch) {
+        symbols.push(`  method ${functionMatch[1]}(${(functionMatch[2] || '').trim()})`);
+      }
+    }
+
+    return symbols;
+  }
+
+  extractKotlinSymbols(code) {
+    const symbols = [];
+    const lines = code.split('\n');
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+      const typeMatch = trimmed.match(/^(?:(?:public|internal|private|protected|open|abstract|data|sealed|enum|annotation|value|inner)\s+)*(class|interface|object)\s+([A-Za-z_]\w*)/);
+      if (typeMatch) {
+        symbols.push(`  ${typeMatch[1]} ${typeMatch[2]}`);
+        continue;
+      }
+
+      const functionMatch = trimmed.match(/^(?:(?:public|internal|private|protected|open|override|suspend|inline|tailrec|operator|infix|external)\s+)*fun\s+(?:<[^>]+>\s+)?(?:[\w.<>?]+\.)?([A-Za-z_]\w*)\s*\(([^)]*)\)/);
+      if (functionMatch) {
+        symbols.push(`  function ${functionMatch[1]}(${functionMatch[2].trim()})`);
+      }
+    }
+
+    return symbols;
+  }
+
+  extractSwiftSymbols(code) {
+    const symbols = [];
+    const lines = code.split('\n');
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+      const typeMatch = trimmed.match(/^(?:(?:public|private|fileprivate|internal|open|final|indirect)\s+)*(class|struct|enum|protocol|actor)\s+([A-Za-z_]\w*)/);
+      if (typeMatch) {
+        symbols.push(`  ${typeMatch[1]} ${typeMatch[2]}`);
+        continue;
+      }
+
+      const functionMatch = trimmed.match(/^(?:(?:public|private|fileprivate|internal|open|static|class|mutating|override|final|async|nonisolated)\s+)*func\s+([A-Za-z_]\w*)\s*\(([^)]*)\)/);
+      if (functionMatch) {
+        symbols.push(`  function ${functionMatch[1]}(${functionMatch[2].trim()})`);
       }
     }
 
@@ -170,7 +311,7 @@ class SymbolIndexer {
     for (const entry of entries) {
       if (['node_modules', '.git', 'dist', 'build', '.lean'].includes(entry.name)) continue;
       const full = path.join(dirPath, entry.name);
-      if (entry.isFile() && /\.(js|ts|py|json|md)$/i.test(entry.name)) {
+      if (entry.isFile() && /\.(js|jsx|ts|tsx|mjs|cjs|py|php|phtml|java|cs|go|rs|rb|kt|kts|swift|c|h|cc|cpp|cxx|hh|hpp|hxx|json|md)$/i.test(entry.name)) {
         try {
           const res = this.extract(full);
           summaries.push(res.output);
