@@ -1,6 +1,6 @@
 # LeanToken (Zero-Latency Token Optimization Engine)
 
-[![CI](https://github.com/arifahmedjoy/lean-token/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/arifahmedjoy/lean-token/actions/workflows/ci.yml)
+[![CI](https://github.com/arifahmedjoy/leantoken/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/arifahmedjoy/leantoken/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Node.js 18+](https://img.shields.io/badge/Node.js-18%2B-339933)](https://nodejs.org/)
 
@@ -65,8 +65,8 @@ LeanToken requires Node.js 18 or later and has no external package dependencies.
 Run it from a checkout:
 
 ```sh
-git clone https://github.com/arifahmedjoy/lean-token.git
-cd lean-token
+git clone https://github.com/arifahmedjoy/leantoken.git
+cd leantoken
 node bin/lean.js help
 node bin/lean.js prune git status
 ```

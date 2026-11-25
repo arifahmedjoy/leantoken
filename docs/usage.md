@@ -8,8 +8,8 @@ Node.js 18 or later.
 Clone the repository, then run the CLI directly:
 
 ```sh
-git clone https://github.com/arifahmedjoy/lean-token.git
-cd lean-token
+git clone https://github.com/arifahmedjoy/leantoken.git
+cd leantoken
 node bin/lean.js help
 ```
 

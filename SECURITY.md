@@ -3,7 +3,7 @@
 ## Reporting a vulnerability
 
 Please report security vulnerabilities privately through
-[GitHub's private vulnerability reporting for this repository](https://github.com/arifahmedjoy/lean-token/security/advisories/new).
+[GitHub's private vulnerability reporting for this repository](https://github.com/arifahmedjoy/leantoken/security/advisories/new).
 Include the affected version or commit, the impact, and steps to reproduce when
 safe to do so. Do not open a public issue for an unpatched vulnerability.
 

@@ -7,7 +7,8 @@ function git {
     if ($args.Count -gt 0 -and ($args[0] -eq 'status' -or $args[0] -eq 'st' -or $args[0] -eq 'diff' -or $args[0] -eq 'log')) {
         & node "D:\lean-token\bin\lean.js" prune git $args
     } else {
-        & (Get-Command git.exe -CommandType Application) $args
+        $realGit = (Get-Command git.exe -CommandType Application | Select-Object -First 1).Source
+        & $realGit $args
     }
 }
 
