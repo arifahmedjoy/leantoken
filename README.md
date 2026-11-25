@@ -84,3 +84,13 @@ npm run benchmark
 See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution and verification
 guidance. The project is distributed under the [MIT License](LICENSE); security
 issues should be reported according to [SECURITY.md](SECURITY.md).
+
+## Acknowledgments & Inspiration
+
+LeanToken builds upon insights and experiments pioneered by the open-source community around developer token efficiency:
+- **Minimal Diff & YAGNI Patterns**: Inspired by Dietrich Gebert's exploration of minimal modification nudges.
+- **Telegraphic Output Protocols**: Inspired by Julius Brussee and Jay Pokale's research into concise LLM response formatting.
+- **Terminal Command Filtering**: Inspired by community shell rewriting and command interception experiments (such as RTK).
+- **Symbol & Structural Retrieval**: Inspired by language server AST navigation paradigms (such as Serena).
+
+All product names, logos, and brands referenced are property of their respective owners.
