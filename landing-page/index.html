@@ -1,0 +1,326 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#f5f7f2">
+    <meta name="robots" content="index, follow">
+    <meta name="description" content="LeanToken is a lightweight, local-first CLI that trims noisy coding-agent output, outlines source code, and keeps full command logs available.">
+    <link rel="canonical" href="https://leantoken.dev/">
+    <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="styles.css">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="LeanToken">
+    <meta property="og:title" content="LeanToken — Keep coding-agent context lean">
+    <meta property="og:description" content="A lightweight local CLI for pruning command output, exploring code structure, and learning project footguns.">
+    <meta property="og:url" content="https://leantoken.dev/">
+    <meta property="og:image" content="https://leantoken.dev/assets/og-image.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:type" content="image/png">
+    <meta property="og:image:alt" content="LeanToken keeps coding-agent context focused with local command pruning and source outlines.">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="LeanToken — Keep coding-agent context lean">
+    <meta name="twitter:description" content="A lightweight local CLI for pruning command output, exploring code structure, and learning project footguns.">
+    <meta name="twitter:image" content="https://leantoken.dev/assets/og-image.png">
+    <title>LeanToken — Local-First Token Optimization for Coding Agents</title>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "LeanToken",
+        "url": "https://leantoken.dev/",
+        "description": "A lightweight, local-first CLI for pruning coding-agent command output, outlining source code, and learning project patterns.",
+        "applicationCategory": "DeveloperApplication",
+        "operatingSystem": "Windows, macOS, Linux",
+        "softwareVersion": "0.1.0",
+        "license": "https://opensource.org/license/mit",
+        "codeRepository": "https://github.com/arifahmedjoy/leantoken",
+        "programmingLanguage": "JavaScript"
+      }
+    </script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="site-header">
+      <nav class="nav wrap" aria-label="Main navigation">
+        <a class="brand" href="#" aria-label="LeanToken home">
+          <span class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 32 32" fill="none">
+              <path d="M7 8.5h11.5a6.5 6.5 0 0 1 0 13H14a4 4 0 0 0 0 8h11" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
+              <circle cx="7" cy="8.5" r="3" fill="currentColor"/>
+              <circle cx="25" cy="29.5" r="3" fill="currentColor"/>
+            </svg>
+          </span>
+          <span>lean<span class="brand-light">token</span></span>
+        </a>
+        <div class="nav-links">
+          <a href="#how-it-works">How it works</a>
+          <a href="#features">Features</a>
+          <a href="#languages">Languages</a>
+          <a class="nav-github" href="https://github.com/arifahmedjoy/leantoken" target="_blank" rel="noopener noreferrer">
+            GitHub <span aria-hidden="true">↗</span>
+          </a>
+        </div>
+      </nav>
+    </header>
+
+    <main id="main">
+      <section class="hero wrap">
+        <div class="hero-copy">
+          <p class="eyebrow"><span class="pulse-dot"></span> Local-first context tooling</p>
+          <h1>Keep your coding agent's context <span>lean.</span></h1>
+          <p class="hero-intro">
+            A small CLI that trims noisy command output, maps code structure,
+            and remembers useful project patterns. No proxy. No model calls.
+            Just less noise between you and the work.
+          </p>
+          <div class="hero-actions">
+            <a class="button button-primary" href="#get-started">Get started <span aria-hidden="true">→</span></a>
+            <a class="button button-quiet" href="https://github.com/arifahmedjoy/leantoken" target="_blank" rel="noopener noreferrer">
+              Explore the source <span aria-hidden="true">↗</span>
+            </a>
+          </div>
+          <div class="hero-facts" aria-label="Project facts">
+            <span><i class="fact-check" aria-hidden="true">✓</i> MIT licensed</span>
+            <span><i class="fact-check" aria-hidden="true">✓</i> Node.js 18+</span>
+            <span><i class="fact-check" aria-hidden="true">✓</i> No runtime dependencies</span>
+          </div>
+        </div>
+
+        <div class="hero-visual" aria-label="Example of LeanToken summarizing a test command">
+          <div class="orbit orbit-one"></div>
+          <div class="orbit orbit-two"></div>
+          <div class="terminal">
+            <div class="terminal-top">
+              <div class="window-dots" aria-hidden="true"><i></i><i></i><i></i></div>
+              <span>lean — local command view</span>
+              <span class="terminal-status"><i></i> ready</span>
+            </div>
+            <div class="terminal-body">
+              <p class="terminal-command"><span>$</span> lean prune npm test</p>
+              <div class="terminal-rule"></div>
+              <p class="term-muted">Running project test suite...</p>
+              <p class="term-success"><span>✓</span> ALL TESTS PASSED</p>
+              <p class="term-muted">4 test groups completed</p>
+              <div class="terminal-rule terminal-rule-short"></div>
+              <p class="term-output">[LeanToken: condensed output]</p>
+              <p class="term-path"><span>↳</span> Full output: .lean/logs/last-command.log</p>
+            </div>
+            <div class="terminal-foot">
+              <span><b></b> Original output kept locally</span>
+              <span>0 network calls</span>
+            </div>
+          </div>
+          <div class="visual-note note-top"><span class="note-icon">↘</span> noisy output</div>
+          <div class="visual-note note-bottom"><span class="note-icon">✳</span> useful signal</div>
+          <div class="hero-spark spark-one" aria-hidden="true">✳</div>
+          <div class="hero-spark spark-two" aria-hidden="true">·</div>
+        </div>
+      </section>
+
+      <section class="trust-strip" aria-label="LeanToken summary">
+        <div class="wrap trust-items">
+          <span class="trust-label">BUILT FOR PRACTICAL CODING WORKFLOWS</span>
+          <span><b>01</b> deterministic pruning</span>
+          <span><b>02</b> lightweight outlines</span>
+          <span><b>03</b> local project memory</span>
+        </div>
+      </section>
+
+      <section class="section wrap" id="how-it-works">
+        <div class="section-heading">
+          <p class="eyebrow">A smaller loop, not another layer</p>
+          <h2>Useful context in.<br><span>Less noise out.</span></h2>
+          <p>LeanToken works at the edges of your coding workflow. It doesn't sit between your agent and its model.</p>
+        </div>
+        <div class="flow-card">
+          <div class="flow-topline"><span>THE LOCAL FLOW</span><span class="flow-id">01 / 03</span></div>
+          <div class="flow-diagram">
+            <div class="flow-node">
+              <span class="flow-icon icon-command" aria-hidden="true">&gt;_</span>
+              <strong>Your command</strong>
+              <small>git · tests · JSON · more</small>
+            </div>
+            <span class="flow-arrow" aria-hidden="true">→</span>
+            <div class="flow-node flow-node-active">
+              <span class="flow-icon icon-lean" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none"><path d="M5 6h14M8 12h8m-5 6h2" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>
+              </span>
+              <strong>LeanToken</strong>
+              <small>deterministic local rules</small>
+            </div>
+            <span class="flow-arrow" aria-hidden="true">→</span>
+            <div class="flow-node">
+              <span class="flow-icon icon-context" aria-hidden="true">✳</span>
+              <strong>Focused context</strong>
+              <small>agent sees the signal</small>
+            </div>
+          </div>
+          <div class="flow-foot">
+            <span class="flow-lock" aria-hidden="true">⌑</span>
+            <p><strong>Full output stays close.</strong> When pruning runs, the original command output is best-effort spooled to your local <code>.lean/logs/</code> folder.</p>
+            <span class="local-pill">LOCAL</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="features-section" id="features">
+        <div class="wrap">
+          <div class="section-heading section-heading-center">
+            <p class="eyebrow">Small tools. Clear jobs.</p>
+            <h2>Keep the useful.<br><span>Leave the rest nearby.</span></h2>
+            <p>Independent CLI features you can use together or one at a time.</p>
+          </div>
+          <div class="feature-grid">
+            <article class="feature-card feature-card-dark">
+              <div class="feature-icon feature-icon-green" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none"><path d="M4 5h16M7 10h10m-7 5h4m-2 4h0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+              </div>
+              <p class="feature-index">01 / OUTPUT</p>
+              <h3>Prune command noise</h3>
+              <p>Condense common Git, test, directory, and JSON output with predictable local rules. Unexpected parsing trouble fails open to the original output.</p>
+              <code class="feature-code">lean prune git status</code>
+              <div class="card-glow" aria-hidden="true"></div>
+            </article>
+            <article class="feature-card">
+              <div class="feature-icon feature-icon-violet" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none"><path d="M8 4H5v16h3m8-16h3v16h-3M14 7l-4 10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </div>
+              <p class="feature-index">02 / STRUCTURE</p>
+              <h3>See code shape</h3>
+              <p>Get a compact outline of classes, functions, and methods without dumping the whole file into your working context.</p>
+              <code class="feature-code">lean symbols src/</code>
+            </article>
+            <article class="feature-card">
+              <div class="feature-icon feature-icon-amber" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none"><path d="M12 3v3m0 12v3M4.6 4.6l2.1 2.1m10.6 10.6 2.1 2.1M3 12h3m12 0h3M4.6 19.4l2.1-2.1M17.3 6.7l2.1-2.1M9 10a3 3 0 1 1 5.2 2c-.9.8-2.2 1.1-2.2 2.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+              </div>
+              <p class="feature-index">03 / LEARNING</p>
+              <h3>Remember project patterns</h3>
+              <p>Analyze supported JSONL transcripts out of band to surface repeatedly read files and command errors in local project memory.</p>
+              <code class="feature-code">lean learn session.jsonl</code>
+            </article>
+            <article class="feature-card">
+              <div class="feature-icon feature-icon-blue" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none"><path d="M5 18V9m7 9V5m7 13v-6M3 20h18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+              </div>
+              <p class="feature-index">04 / VISIBILITY</p>
+              <h3>Track local savings</h3>
+              <p>Review pruning totals and engine latency from local telemetry. No account or hosted dashboard required.</p>
+              <code class="feature-code">lean stats</code>
+            </article>
+            <article class="feature-card feature-card-wide">
+              <div class="wide-copy">
+                <div class="feature-icon feature-icon-green" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none"><path d="M12 3 4 7v5c0 4.6 3.4 7.8 8 9 4.6-1.2 8-4.4 8-9V7l-8-4Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="m9 12 2 2 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </div>
+                <p class="feature-index">LOCAL BY DESIGN</p>
+                <h3>Your workflow stays yours.</h3>
+                <p>LeanToken runs on your machine, works with local command output, and doesn't proxy or rewrite model conversations.</p>
+              </div>
+              <div class="privacy-visual" aria-hidden="true">
+                <span class="privacy-ring ring-one"></span>
+                <span class="privacy-ring ring-two"></span>
+                <span class="privacy-core">LT</span>
+                <span class="privacy-label">YOUR MACHINE</span>
+              </div>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="section languages-section wrap" id="languages">
+        <div class="language-copy">
+          <p class="eyebrow">Language-friendly, not language-bound</p>
+          <h2>Work in the stack<br><span>you already have.</span></h2>
+          <p>Command pruning is language-agnostic. Symbol outlines include common source languages, with a generic summary for other files.</p>
+          <a class="text-link" href="https://github.com/arifahmedjoy/leantoken/blob/main/docs/usage.md" target="_blank" rel="noopener noreferrer">
+            See usage details <span aria-hidden="true">↗</span>
+          </a>
+        </div>
+        <div class="language-panel">
+          <div class="language-panel-top"><span>OUTLINE SUPPORT</span><span class="language-live"><i></i> ready</span></div>
+          <div class="language-list" aria-label="Source languages with lightweight outline support">
+            <span>JavaScript</span><span>TypeScript</span><span>Python</span>
+            <span>PHP</span><span>Java</span><span>C#</span>
+            <span>Go</span><span>Rust</span><span>Ruby</span>
+            <span>Kotlin</span><span>Swift</span><span>C / C++</span>
+          </div>
+          <p class="language-note"><span aria-hidden="true">↳</span> Best-effort, lightweight outlines — not compiler-grade parsing.</p>
+        </div>
+      </section>
+
+      <section class="start-section" id="get-started">
+        <div class="wrap start-wrap">
+          <div>
+            <p class="eyebrow eyebrow-light">Open source · MIT · Node.js 18+</p>
+            <h2>Make room for<br><span>the real work.</span></h2>
+            <p>Start from a checkout. Add the CLI where it helps; keep the rest of your workflow unchanged.</p>
+          </div>
+          <div class="start-code">
+            <div class="start-code-top"><span>QUICK START</span><span>1 minute</span></div>
+            <pre><code>git clone https://github.com/arifahmedjoy/leantoken.git
+cd leantoken
+npm link
+lean prune git status</code></pre>
+            <a href="https://github.com/arifahmedjoy/leantoken" target="_blank" rel="noopener noreferrer">
+              Browse the repository <span aria-hidden="true">↗</span>
+            </a>
+          </div>
+        </div>
+      </section>
+
+      <section class="faq-section wrap" id="faq">
+        <div class="faq-intro">
+          <p class="eyebrow">A few quick answers</p>
+          <h2>Good to know.</h2>
+          <p>LeanToken is intentionally small. Here’s what that means in practice.</p>
+        </div>
+        <div class="faq-list">
+          <details>
+            <summary>Does LeanToken send code or prompts to a service?</summary>
+            <p>No. The CLI works locally and does not send source code, command output, or prompts to a LeanToken service.</p>
+          </details>
+          <details>
+            <summary>Does it require a specific coding agent?</summary>
+            <p>No. Use the CLI directly or opt into the provided shell hooks. The pruning and symbol commands are not tied to one agent.</p>
+          </details>
+          <details>
+            <summary>Does symbol outlining parse every language perfectly?</summary>
+            <p>No. It uses lightweight heuristics for common languages and a generic summary for other individual files. It is designed for quick orientation, not as a replacement for a compiler or language server.</p>
+          </details>
+          <details>
+            <summary>What happens to the full command output?</summary>
+            <p>Pruning best-effort saves the raw output to <code>.lean/logs/last-command.log</code>, so you can inspect detail when needed.</p>
+          </details>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="wrap footer-main">
+        <a class="brand footer-brand" href="#" aria-label="LeanToken home">
+          <span class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 32 32" fill="none">
+              <path d="M7 8.5h11.5a6.5 6.5 0 0 1 0 13H14a4 4 0 0 0 0 8h11" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
+              <circle cx="7" cy="8.5" r="3" fill="currentColor"/>
+              <circle cx="25" cy="29.5" r="3" fill="currentColor"/>
+            </svg>
+          </span>
+          <span>lean<span class="brand-light">token</span></span>
+        </a>
+        <p>Less noise. More signal. Locally.</p>
+        <div class="footer-links">
+          <a href="https://github.com/arifahmedjoy/leantoken" target="_blank" rel="noopener noreferrer">GitHub <span aria-hidden="true">↗</span></a>
+          <a href="https://github.com/arifahmedjoy/leantoken/blob/main/LICENSE" target="_blank" rel="noopener noreferrer">MIT License <span aria-hidden="true">↗</span></a>
+          <a href="https://github.com/arifahmedjoy/leantoken/blob/main/SECURITY.md" target="_blank" rel="noopener noreferrer">Security <span aria-hidden="true">↗</span></a>
+        </div>
+      </div>
+      <div class="wrap footer-bottom">
+        <span>© 2026 LeanToken contributors</span>
+        <span>Made for people building with code.</span>
+      </div>
+    </footer>
+  </body>
+</html>
