@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-11-26
+
 ### Fixed
 - `lean remove` and `lean uninstall` left the `.gitignore` lines that `init` added, and an empty `.claude/` folder. `init` now writes its `.gitignore` lines under a `# LeanToken` marker, and `remove` deletes exactly those lines (and `.gitignore` itself if LeanToken created it). Lines written by 0.2.0 have no marker, so remove them by hand once.
 
@@ -52,6 +54,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `lean stats` and `lean statusline`: local token-savings telemetry.
 - Opt-in Bash and PowerShell shell hooks.
 
-[Unreleased]: https://github.com/arifahmedjoy/leantoken/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/arifahmedjoy/leantoken/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/arifahmedjoy/leantoken/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/arifahmedjoy/leantoken/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/arifahmedjoy/leantoken/releases/tag/v0.1.0
