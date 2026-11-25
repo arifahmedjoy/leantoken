@@ -1,0 +1,43 @@
+name: Website bug report
+description: Report a problem with the leantoken.dev landing page.
+title: "[Website Bug]: "
+labels: ["bug", "website"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This template is for the **website** only. Report CLI bugs with the bug report template on `main`.
+  - type: input
+    id: url
+    attributes:
+      label: Page URL or section
+      description: For example, https://leantoken.dev/#get-started
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: Describe what you saw and what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Browser and device
+      description: For example, Chrome 142 on Windows 11, or Safari on iPhone 15
+    validations:
+      required: true
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots
+      description: Drag and drop images here when useful.
+    validations:
+      required: false

@@ -1,0 +1,31 @@
+name: Website content or design request
+description: Suggest a copy, design, or SEO improvement for leantoken.dev.
+title: "[Website]: "
+labels: ["enhancement", "website"]
+body:
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Copy / wording
+        - Layout / design
+        - Accessibility
+        - SEO / metadata
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: What should change, and why?
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Links, mockups, or examples.
+    validations:
+      required: false

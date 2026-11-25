@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: LeanToken CLI issues
+    url: https://github.com/arifahmedjoy/leantoken/issues/new/choose
+    about: Use the CLI templates on the main branch for bugs or features in the LeanToken CLI.
+  - name: Report a security vulnerability
+    url: https://github.com/arifahmedjoy/leantoken/security/advisories/new
+    about: Report vulnerabilities privately. Do not open a public issue.
