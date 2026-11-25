@@ -74,19 +74,6 @@ node bin/lean.js prune git status
 See the [usage guide](docs/usage.md) for all current CLI commands, shell hooks,
 and notes about local runtime data.
 
-## Landing page
-
-The Astro and Tailwind CSS frontend is maintained in `landing-page/`. It
-requires Node.js 22.23.4 or later:
-
-```sh
-cd landing-page
-npm install
-npm run dev
-```
-
-Create a production build with `npm run build` from `landing-page/`.
-
 ## Development
 
 ```sh
