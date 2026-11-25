@@ -1,7 +1,7 @@
 # Reality-Based Integration Certification Report
 **Integration Agent**: TestingRealityChecker  
 **Assessment Date**: 2026-11-25  
-**Evidence Source**: `D:\lean-token\test-results\qa-evidence-report.md` + direct CLI executions
+**Evidence Source**: `test-results/qa-evidence-report.md` + direct CLI executions
 **Certification Verdict**: **PROVISIONAL CERTIFICATION FOR MVP v0.1.0 (STAGING / EARLY ADOPTER READY)**
 
 ---

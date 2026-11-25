@@ -32,6 +32,8 @@ class SymbolIndexer {
       symbols = this.extractJavaScriptSymbols(content);
     } else if (['.py'].includes(ext)) {
       symbols = this.extractPythonSymbols(content);
+    } else if (['.php'].includes(ext)) {
+      symbols = this.extractPhpSymbols(content);
     } else if (['.json'].includes(ext)) {
       symbols = this.extractJsonSchema(content);
     } else {
@@ -109,6 +111,31 @@ class SymbolIndexer {
           const indent = line.search(/\S/) > 0 ? '    def ' : '  def ';
           symbols.push(`${indent}${fnMatch[1]}(${fnMatch[2].trim()})${fnMatch[3] ? ` -> ${fnMatch[3].trim()}` : ''}`);
         }
+      }
+    }
+
+    return symbols;
+  }
+
+  extractPhpSymbols(code) {
+    const symbols = [];
+    const lines = code.split('\n');
+
+    for (let line of lines) {
+      const trimmed = line.trim();
+
+      // Class or Interface or Trait
+      const classMatch = trimmed.match(/^(?:abstract\s+|final\s+)?(class|interface|trait)\s+([A-Za-z0-9_]+)/);
+      if (classMatch) {
+        symbols.push(`  ${classMatch[1]} ${classMatch[2]}`);
+        continue;
+      }
+
+      // Standalone function or method
+      const fnMatch = trimmed.match(/^(?:(?:public|protected|private|static|abstract|final)\s+)*function\s+([A-Za-z0-9_]+)\s*\(([^)]*)\)/);
+      if (fnMatch) {
+        const indent = line.search(/\S/) > 0 ? '    function ' : '  function ';
+        symbols.push(`${indent}${fnMatch[1]}(${fnMatch[2].trim()})`);
       }
     }
 

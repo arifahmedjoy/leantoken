@@ -1,7 +1,7 @@
 # QA Evidence-Based Report (Sprint 1 MVP Build)
 **QA Agent**: EvidenceQA (Testing Evidence Collector)  
 **Date**: 2026-11-25  
-**Workspace**: `D:\lean-token`
+**Workspace**: repository root
 **Test Harness**: `node test/runner.js` + `node test/benchmark.js`  
 **Status**: VERIFIED PASS
 
@@ -10,14 +10,14 @@
 ## 🔍 Reality Check Execution & Commands Run
 
 ```bash
-# 1. Run Automated Test Suite
-cd D:\lean-token && node test/runner.js
+# Run from the repository root
+node test/runner.js
 
-# 2. Run High-Precision 1,000-Iteration Latency SLA Benchmark
-cd D:\lean-token && node test/benchmark.js
+# Run the 1,000-iteration latency benchmark
+node test/benchmark.js
 
-# 3. Live Shell Command Validation
-cd D:\lean-token && node bin/lean.js prune git status
+# Validate command pruning
+node bin/lean.js prune git status
 ```
 
 ---
@@ -37,7 +37,7 @@ cd D:\lean-token && node bin/lean.js prune git status
   - Raw: 94 tokens (21 lines)
   - Pruned: 36 tokens (7 lines)
   - **Net Reduction**: **-62% tokens**
-  - **Spool Log**: Verified created at `D:\lean-token\.lean\logs\last-command.log`.
+  - **Spool Log**: Verified at `.lean/logs/last-command.log`.
 - **Passing Test Runner Pruning (`npm test`)**:
   - Raw: 12 lines verbose suite breakdown
   - Pruned: 2 lines summary

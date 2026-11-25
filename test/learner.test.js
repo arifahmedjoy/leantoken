@@ -9,8 +9,8 @@ function testLearnerOutdatedTranscript() {
   
   // Simulate synthetic transcript entries
   const fileReads = {
-    'D:/project/src/config.json': 5,
-    'D:/project/README.md': 1
+    [path.join('project', 'src', 'config.json')]: 5,
+    [path.join('project', 'README.md')]: 1
   };
   const commandErrors = [
     { cmd: 'git pull origin main', code: 1, error: 'rejected non-fast-forward' }

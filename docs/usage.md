@@ -47,14 +47,20 @@ The CLI's current command list and option handling are authoritative; check
 
 ## Optional shell hooks
 
-The Bash hook can be sourced from a Bash or Zsh profile:
+From the repository root, activate the Bash or Zsh hook in the current shell:
 
 ```sh
-source /path/to/leantoken/src/shell/hooks.sh
+source ./src/shell/hooks.sh
 ```
 
-The PowerShell hook is `src/shell/hooks.ps1`. Update its configured CLI path to
-your checkout before sourcing it from `$PROFILE`.
+For PowerShell, dot-source the hook from the repository root:
+
+```powershell
+. .\src\shell\hooks.ps1
+```
+
+For persistent profile integration, source the hook using the location of your
+checkout; both hooks resolve the CLI relative to their own files.
 
 Hooks redirect selected commands through `lean prune`; use the CLI directly if
 you do not want that shell behavior.

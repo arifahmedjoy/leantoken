@@ -32,7 +32,7 @@ Instead of paying a 2-second latency penalty to squeeze 1% out of uncached input
 ## Repository Structure
 
 ```
-D:\lean-token\
+leantoken/
 ├── README.md                              # Project manifesto and architectural overview
 ├── PRD.md                                 # Product Requirements Document (Goals, Personas, Stories)
 ├── ROADMAP.md                             # Now / Next / Later roadmap & anti-roadmap
