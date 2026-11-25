@@ -317,6 +317,7 @@ class SymbolIndexer {
     const entries = fs.readdirSync(dirPath, { withFileTypes: true });
     const summaries = [];
     let totalTokens = 0;
+    let totalSymbols = 0;
 
     for (const entry of entries) {
       if (['node_modules', '.git', 'dist', 'build', '.lean'].includes(entry.name)) continue;
@@ -326,6 +327,7 @@ class SymbolIndexer {
           const res = this.extract(full);
           summaries.push(res.output);
           totalTokens += res.tokens;
+          totalSymbols += res.symbolCount;
         } catch {
           // ignore individual read errors
         }
@@ -334,7 +336,7 @@ class SymbolIndexer {
 
     return {
       filePath: dirPath,
-      symbolCount: summaries.length,
+      symbolCount: totalSymbols,
       output: summaries.join('\n\n'),
       tokens: totalTokens,
       savedPct: 85

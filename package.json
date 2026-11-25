@@ -1,11 +1,18 @@
 {
-	"name": "leantoken",
-	"version": "0.1.0",
+	"name": "@arifahmedjoy/leantoken",
+	"version": "0.2.0",
 	"description": "Zero-latency, zero-toggle AI token compression and optimization engine for coding agents",
 	"main": "src/index.js",
 	"bin": {
 		"lean": "./bin/lean.js"
 	},
+	"files": [
+		"bin/",
+		"src/",
+		"docs/usage.md",
+		"README.md",
+		"LICENSE"
+	],
 	"scripts": {
 		"test": "node test/runner.js",
 		"benchmark": "node test/benchmark.js"
@@ -30,5 +37,8 @@
 	"homepage": "https://github.com/arifahmedjoy/leantoken#readme",
 	"engines": {
 		"node": ">=18.0.0"
+	},
+	"publishConfig": {
+		"access": "public"
 	}
 }

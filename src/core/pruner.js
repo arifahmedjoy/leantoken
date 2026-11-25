@@ -1,6 +1,8 @@
 const fs = require('fs');
 const path = require('path');
 
+const TEST_RUNNER_RE = /\b(npm|pnpm|yarn|bun)\s+(run\s+)?test\b|\b(pytest|vitest|jest|mocha|phpunit|rspec)\b|\b(go|cargo|dotnet|mix|deno)\s+test\b|\bgradlew?(\.bat)?\s+\S*test|\bmvnw?\s+(\S+\s+)*test\b|\bnode\s+--test\b/;
+
 /**
  * CommandPruner: Deterministic, sub-3ms stream pruner for AI agent command output
  */
@@ -40,20 +42,20 @@ class CommandPruner {
     }
 
     let pruned = rawOutput;
-    const lowerCmd = (command || '').toLowerCase().trim();
 
     try {
-      if (lowerCmd.startsWith('git status') || lowerCmd === 'git st') {
+      const route = this.route(command, rawOutput);
+      if (route === 'git-status') {
         pruned = this.pruneGitStatus(rawOutput);
-      } else if (lowerCmd.startsWith('git diff')) {
+      } else if (route === 'git-diff') {
         pruned = this.pruneGitDiff(rawOutput);
-      } else if (lowerCmd.startsWith('git log')) {
+      } else if (route === 'git-log') {
         pruned = this.pruneGitLog(rawOutput);
-      } else if (lowerCmd.includes('test') || lowerCmd.includes('pytest') || lowerCmd.includes('vitest') || lowerCmd.includes('jest')) {
+      } else if (route === 'test') {
         pruned = this.pruneTestOutput(rawOutput);
-      } else if (lowerCmd.startsWith('dir') || lowerCmd.startsWith('ls') || lowerCmd.startsWith('tree')) {
+      } else if (route === 'listing') {
         pruned = this.pruneDirectoryListing(rawOutput);
-      } else if (rawOutput.trim().startsWith('{') || rawOutput.trim().startsWith('[')) {
+      } else if (route === 'json') {
         pruned = this.pruneJson(rawOutput);
       } else {
         // Generic pruner: Collapse repeated whitespace, consecutive blank lines, noisy ANSI escape sequences
@@ -81,6 +83,19 @@ class CommandPruner {
       pruneDurationMs,
       spoolPath
     };
+  }
+
+  route(command, rawOutput = '') {
+    const lowerCmd = (command || '').toLowerCase().trim();
+    if (lowerCmd.startsWith('git status') || lowerCmd === 'git st') return 'git-status';
+    if (lowerCmd.startsWith('git diff')) return 'git-diff';
+    if (lowerCmd.startsWith('git log')) return 'git-log';
+    // Only real test-runner invocations; a path or grep term containing "test" must not match
+    if (TEST_RUNNER_RE.test(lowerCmd)) return 'test';
+    if (/^(dir|ls|tree)(\s|$)/.test(lowerCmd)) return 'listing';
+    const trimmed = rawOutput.trim();
+    if (trimmed.startsWith('{') || trimmed.startsWith('[')) return 'json';
+    return 'generic';
   }
 
   pruneGitStatus(output) {
@@ -167,7 +182,8 @@ class CommandPruner {
   pruneTestOutput(output) {
     const lines = output.split('\n');
     const result = [];
-    let isFailing = output.includes('FAIL') || output.includes('ERR') || output.includes('failed');
+    // Broad on purpose: a false "failing" only costs savings, a false "passing" hides failures
+    let isFailing = /fail|error|panic|exception|traceback|✗|✖|✘/i.test(output);
 
     if (!isFailing) {
       // Test passed completely: return ultra-compact summary
@@ -196,7 +212,8 @@ class CommandPruner {
     let noiseFolded = 0;
 
     for (let line of lines) {
-      if (/node_modules|\.git|dist|build|target|vendor|\.venv|__pycache__/i.test(line)) {
+      // Match whole path segments only (".github", "build-guide.md" are kept)
+      if (/(^|[\s\/\\])(node_modules|\.git|dist|build|target|vendor|\.venv|__pycache__)([\s\/\\:]|$)/i.test(line)) {
         noiseFolded++;
         continue;
       }

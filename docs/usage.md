@@ -28,10 +28,22 @@ node bin/lean.js stats
 node bin/lean.js statusline
 ```
 
-- `init` adds the shared directive to `CLAUDE.md`, `.cursorrules`, and
-  `AGENTS.md` in the current directory and initializes `.lean/` runtime files.
-  `--dry-run` previews the directive; `--global` targets the user's Claude
-  configuration instead.
+- `init` writes the shared directive for every major AI host in the current
+  directory: `CLAUDE.md`, `AGENTS.md`, `GEMINI.md`,
+  `.github/copilot-instructions.md`, `.cursorrules`,
+  `.windsurf/rules/leantoken.md`, `.clinerules/leantoken.md` and
+  `.junie/guidelines.md`. It also installs the Claude Code auto-prune hook in
+  `.claude/settings.local.json`, initializes `.lean/` and gitignores both.
+  Re-running upgrades the directive in place (between `leantoken:start/end`
+  markers); content around it is kept. Options: `--only=claude,copilot,...`
+  limits hosts, `--no-hooks` skips the hook, `--dry-run` previews, and
+  `--global` writes user-level files (`~/.claude/CLAUDE.md`, the hook in
+  `~/.claude/settings.json`, and `~/.gemini/GEMINI.md`, `~/.codex/AGENTS.md`,
+  `~/.config/opencode/AGENTS.md` when those tools are installed). See
+  `docs/11-integration-plan.md` for which file each tool and editor reads.
+- `hook claude` is called by Claude Code's PostToolUse hook, not by people.
+  It prunes only test runs, `git status`, `git diff` and directory listings run
+  as a single command, and leaves all other output untouched.
 - `prune <command...>` runs a command and condenses its output. The original
   output is best-effort stored at `.lean/logs/last-command.log`; accumulated
   statistics are stored in `.lean/stats.json`.

@@ -19,10 +19,13 @@ const command = args[0];
 
 function printHelp() {
   console.log(`
-⚡ LeanToken v0.1.0 - Zero-Latency AI Token Optimizer
+⚡ LeanToken v0.2.0 - Zero-Latency AI Token Optimizer
 
 Usage:
-  lean init [--global]       Inject unified cognitive shaper & configure repo
+  lean init [--global] [--only=<hosts>] [--no-hooks] [--dry-run]
+                             Configure agent instructions for every major AI host
+                             (hosts: claude,agents,gemini,copilot,cursor,windsurf,cline,junie)
+                             and the Claude Code auto-prune hook
   lean prune <command...>    Execute a command and prune output (saves full CCR log)
   lean symbols <file|dir>    Extract clean symbol signatures (<250 tokens per file)
   lean learn [transcript]    Mine session transcripts out-of-band for MEMORY.md
@@ -36,8 +39,11 @@ switch (command) {
   case 'init': {
     const isGlobal = args.includes('--global') || args.includes('-g');
     const dryRun = args.includes('--dry-run');
+    const onlyArg = args.find(a => a.startsWith('--only='));
+    const only = onlyArg ? onlyArg.slice('--only='.length).split(',').map(s => s.trim()).filter(Boolean) : null;
     const shaper = new CognitiveShaper();
-    const result = shaper.init({ global: isGlobal, dryRun });
+    const result = shaper.init({ global: isGlobal, dryRun, only, hooks: !args.includes('--no-hooks') });
+    if (!result.success) process.exitCode = 1;
     console.log(result.message);
     break;
   }
@@ -83,6 +89,21 @@ switch (command) {
     }
 
     process.exit(proc.status || 0);
+    break;
+  }
+
+  case 'hook': {
+    // Called by agent hosts (e.g. Claude Code PostToolUse). Always exits 0: a hook must never block the agent.
+    if (args[1] === 'claude') {
+      try {
+        const { claudePostToolUse } = require('../src/core/hooks');
+        const out = claudePostToolUse(JSON.parse(fs.readFileSync(0, 'utf8')));
+        if (out) process.stdout.write(JSON.stringify(out));
+      } catch {
+        // fail-open
+      }
+    }
+    process.exit(0);
     break;
   }
 

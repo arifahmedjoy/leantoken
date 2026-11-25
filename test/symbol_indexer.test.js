@@ -71,15 +71,17 @@ function testMultiLanguageExtraction() {
   };
 
   try {
+    let expectedSymbols = 0;
     for (const [fileName, fixture] of Object.entries(fixtures)) {
       const filePath = path.join(tempDir, fileName);
       fs.writeFileSync(filePath, fixture.code, 'utf8');
       const result = indexer.extract(filePath);
       assert(result.output.includes(fixture.expected), `${fileName} should include ${fixture.expected}`);
+      expectedSymbols += result.symbolCount;
     }
 
     const directoryResult = indexer.extract(tempDir);
-    assert.strictEqual(directoryResult.symbolCount, Object.keys(fixtures).length);
+    assert.strictEqual(directoryResult.symbolCount, expectedSymbols);
     for (const fixture of Object.values(fixtures)) {
       assert(directoryResult.output.includes(fixture.expected), `Directory scan should include ${fixture.expected}`);
     }
