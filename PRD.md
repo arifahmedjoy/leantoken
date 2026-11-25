@@ -11,7 +11,7 @@
 
 Developers using modern AI coding agents (Claude Code, Cursor, OpenCode, Codex) spend hundreds of dollars per month on API tokens and suffer from context degradation over long multi-turn sessions. 
 
-Commercial in-flight compression proxies (e.g., Headroom AI, vexp) promise transparent token savings, but production empirical data (16-day, 626M token benchmark across ~3,000 requests) reveals a critical product mismatch:
+Commercial in-flight token-compression proxies promise transparent token savings, but one production benchmark (16 days, 626M tokens across ~3,000 requests) highlighted potential trade-offs:
 1. **The Latency Penalty Destroys Velocity**: In-flight proxies add **1.1s - 2.9s of local latency** per request (with p90 at 5.1s-8.4s and 45s stalls) due to synchronous ONNX/ML model inference and JSON re-serialization.
 2. **Negligible In-Flight Compression ROI**: Modern LLMs rely heavily on prompt caching (90% discount). Because in-flight proxies must freeze cached prefixes to avoid cache-invalidation (which causes a 10x price spike), they can only compress the uncached turn delta. This delivered a median token savings of only **0.70%** (1.53% overall), saving only ~$19 on $150+ spend while wasting hours in human developer waiting time.
 3. **Ignored Output Costs**: Output tokens cost **4x-5x more** than cached input tokens ($15/M vs. $0.30-$3.75/M). Current proxies focus on input strings while counterfactual telemetry shows **-3.4% output reduction** (no effect).
@@ -24,9 +24,9 @@ Build **LeanToken**: an open-source, zero-latency optimization suite that saves 
 
 ## 2. Goals & Success Metrics
 
-| Goal | Primary Metric | Baseline (Headroom / Raw Agent) | Target (LeanToken v0.1) | Measurement Window |
+| Goal | Primary Metric | Baseline (In-Flight Proxy / Raw Agent) | Target (LeanToken v0.1) | Measurement Window |
 | :--- | :--- | :--- | :--- | :--- |
-| **Zero Perceptual Latency** | Pre-upstream turn latency overhead | 1,100ms - 2,900ms (Headroom) | **< 5ms** (Deterministic Pruner) | Continuous / every request |
+| **Zero Perceptual Latency** | Pre-upstream turn latency overhead | 1,100ms - 2,900ms (proxy benchmark) | **< 5ms** (Deterministic Pruner) | Continuous / every request |
 | **Output Token Reduction** | Average tokens per agent reply | ~420 tokens / turn | **<= 220 tokens / turn (-45%)** | 14-day evaluation |
 | **Upstream File Dump Prevention** | Tokens spent on code exploration | ~45,000 tokens / 10-turn session | **<= 12,000 tokens (-70%)** | 10 standardized coding tasks |
 | **Cache Prefix Integrity** | Cache-hit rate on Anthropic/OpenAI | 96.2% | **100% byte-for-byte match** | Lifetime |

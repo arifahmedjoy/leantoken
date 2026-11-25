@@ -84,7 +84,7 @@ $ lean stats
   Raw Input Tokens:     842,120
   Pruned Input Tokens:  168,424 (Saved: 673,696 | -80.0%)
   Output Shaper Bonus:  ~42% fewer agent output tokens
-  Average Latency:      1.82 ms (Headroom baseline: 1,840 ms)
+  Average Latency:      1.82 ms (illustrative proxy benchmark: 1,840 ms)
   Prompt Cache Breaks:  0 (100% prefix preservation)
 ══════════════════════════════════════════════════════
 ```

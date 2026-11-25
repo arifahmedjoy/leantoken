@@ -8,9 +8,9 @@
 
 ## 1. The Strategic Pivot: Curated Golden Path vs. Uncurated Marketplace
 
-Headroom AI modeled its product as an open "Addon Marketplace" where users individually toggle plugins (Ponytail, Chisle, Caveman, Serena, Codebase Memory, Context7, RTK).
+Marketplace-style products may present agent extensions (such as Ponytail, Chisle, Caveman, Serena, Codebase Memory, Context7, and RTK) as individually configurable add-ons.
 
-### Why the Marketplace Model Failed:
+### Marketplace Integration Challenges:
 1. **User Misconfiguration**: Users enabled **Chisle**, **Caveman**, and **Ponytail** simultaneously. Chisle was explicitly designed to replace Caveman and Ponytail. Running all three injected competing, contradictory prompt instructions, degrading response quality and wasting prompt tokens.
 2. **The MCP Schema Bomb**: Users toggled every available MCP server on. Each server injected full JSON schemas on every turn, adding **5,000+ tokens of dead schema overhead** per request.
 3. **Plumbing Failures**: Users were expected to manage terminal PATHs, Node.js versions, and shell hooks manually. When hooks failed silently (like RTK on Windows), users received zero feedback.
@@ -78,7 +78,7 @@ Unified Output & Diff Engine   Deterministic Tool Pruner       Lean Symbol Navig
   - Total schema overhead: **< 250 tokens** (vs. 5,000+ tokens for 4 external MCPs).
 
 ### Subsystem 4: Autonomous Session Learner (Memory Level)
-* **What it replaces**: Headroom's closed-source `--learn` proxy feature.
+* **What it replaces**: Session-learning functionality that may otherwise be bundled with a particular proxy product.
 * **Implementation**:
   - Registers as an asynchronous exit hook when the agent session closes.
   - Scans session transcript:

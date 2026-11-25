@@ -1,7 +1,7 @@
 # 03. Tooling Ecosystem & Comparison
 
 This document surveys existing open-source tools:
-- **Headroom / vexp**: Heavy in-flight proxies with latency penalties.
+- **In-flight token-compression tools**: Proxy-based approaches that transform requests before they reach a model provider.
 - **Serena**: Symbol-level code retrieval MCP server.
 - **Caveman**: Telegraphic output prompt skill.
 - **Ponytail**: YAGNI minimal diff philosophy skill.

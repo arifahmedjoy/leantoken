@@ -61,7 +61,7 @@ class Telemetry {
   Raw Input Tokens:        ${data.rawTokens.toLocaleString()}
   Pruned Input Tokens:     ${data.prunedTokens.toLocaleString()}
   Tokens Saved:            ${data.savedTokens.toLocaleString()} (-${savedPct}%)
-  Average Engine Overhead: ${avgLatency} ms (vs Headroom: 1,840 ms)
+  Average Engine Overhead: ${avgLatency} ms (illustrative proxy baseline: 1,840 ms)
   Prompt Cache Breaks:     0 (100% prefix preservation)
   Output Shaper Reduction: ~40% fewer output tokens
 ════════════════════════════════════════════════════════════

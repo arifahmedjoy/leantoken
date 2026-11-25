@@ -9,7 +9,7 @@
 ## 1. Why Now?
 1. **Agent Adoption is Exploding**: Claude Code, Cursor, and OpenCode consume 10M-50M tokens per developer weekly.
 2. **The Prompt Caching Revolution**: 90% discounts on prefix caches completely changed context economics. Products built on pre-caching mutation are obsolete.
-3. **Headroom Production Benchmark Findings**: The 16-day, 626M-token benchmark proved that in-flight proxies add 1.1s-2.9s latency while saving only ~1.5% net tokens.
+3. **In-Flight Proxy Benchmark Findings**: One 16-day, 626M-token benchmark reported 1.1s-2.9s latency and ~1.5% net token savings for the tested configuration.
 
 ---
 

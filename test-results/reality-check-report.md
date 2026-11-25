@@ -1,20 +1,20 @@
 # Reality-Based Integration Certification Report
 **Integration Agent**: TestingRealityChecker  
 **Assessment Date**: 2026-11-25  
-**Evidence Source**: `D:\lean-token\test-results\qa-evidence-report.md` + direct CLI executions  
+**Evidence Source**: `D:\lean-token\test-results\qa-evidence-report.md` + direct CLI executions
 **Certification Verdict**: **PROVISIONAL CERTIFICATION FOR MVP v0.1.0 (STAGING / EARLY ADOPTER READY)**
 
 ---
 
 ## 1. Challenge Against Fantasy Claims
 
-| Claim Checked | Reality Check Audit | Verdict |
-| :--- | :--- | :---: |
-| *"Sub-5ms command pruning latency"* | Benchmark ran 1,000 iterations. Real average was 0.231 ms, P99 was 1.253 ms. Real-world `git status` hook took 0.84 ms. | **CONFIRMED** |
-| *"Zero in-flight token overhead"* | Engine uses regex / stream filters on local process output; zero ML model calls, zero in-flight API requests. | **CONFIRMED** |
-| *"100% prompt cache prefix preservation"* | Zero modification of prior agent message history or API payloads. System prompt rules are static. | **CONFIRMED** |
-| *"Zero-MCP symbol extraction saves tokens"* | Extracted 12 signatures from `src/core/pruner.js` in 108 tokens. Replaces 4,000-token MCP server schemas. | **CONFIRMED** |
-| *"Headroom replacement readiness"* | Headroom's desktop GUI and auto-updater are NOT present; LeanToken v0.1.0 is currently a pure terminal CLI engine. | **VALIDATED LIMITATION** |
+| Claim Checked                               | Reality Check Audit                                                                                                     |         Verdict          |
+| :------------------------------------------ | :---------------------------------------------------------------------------------------------------------------------- | :----------------------: |
+| *"Sub-5ms command pruning latency"*         | Benchmark ran 1,000 iterations. Real average was 0.231 ms, P99 was 1.253 ms. Real-world `git status` hook took 0.84 ms. |      **CONFIRMED**       |
+| *"Zero in-flight token overhead"*           | Engine uses regex / stream filters on local process output; zero ML model calls, zero in-flight API requests.           |      **CONFIRMED**       |
+| *"100% prompt cache prefix preservation"*   | Zero modification of prior agent message history or API payloads. System prompt rules are static.                       |      **CONFIRMED**       |
+| *"Zero-MCP symbol extraction saves tokens"* | Extracted 12 signatures from `src/core/pruner.js` in 108 tokens. Replaces 4,000-token MCP server schemas.               |      **CONFIRMED**       |
+| *"Commercial proxy replacement readiness"*  | A desktop GUI and auto-updater are not part of LeanToken v0.1.0, which is currently a terminal CLI engine.              | **VALIDATED LIMITATION** |
 
 ---
 

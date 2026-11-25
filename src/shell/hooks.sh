@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # LeanToken Bash/Zsh Integration Hook
 # Source this file in ~/.bashrc or ~/.zshrc:
-# source /path/to/lean-token/src/shell/hooks.sh
+# source /path/to/leantoken/src/shell/hooks.sh
 
 LEAN_BIN="node $(dirname "${BASH_SOURCE[0]}")/../../bin/lean.js"
 

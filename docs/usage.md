@@ -50,7 +50,7 @@ The CLI's current command list and option handling are authoritative; check
 The Bash hook can be sourced from a Bash or Zsh profile:
 
 ```sh
-source /path/to/lean-token/src/shell/hooks.sh
+source /path/to/leantoken/src/shell/hooks.sh
 ```
 
 The PowerShell hook is `src/shell/hooks.ps1`. Update its configured CLI path to

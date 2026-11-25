@@ -76,7 +76,7 @@
 
 ## 3. Performance & Resource Budgets
 
-| Metric | LeanToken Target | Headroom Baseline | Delta |
+| Metric | LeanToken Target | Illustrative Proxy Baseline | Delta |
 | :--- | :---: | :---: | :---: |
 | **In-flight Latency Overhead** | **$< 3$ ms** | 1,100 – 2,900 ms | **-99.8%** |
 | **P90 Latency Overhead** | **$< 5$ ms** | 5,100 – 8,400 ms | **-99.9%** |

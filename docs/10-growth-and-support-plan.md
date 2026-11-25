@@ -11,10 +11,10 @@
 - **Distribution Channel 1: Open Source Agent Ecosystem**:
   - Target developer communities using Claude Code, Cursor, OpenCode, Aider, and Codex.
   - Positioning: *"Stop paying a 2-second latency tax for 1.5% token compression. Get 60%+ output pruning at 0.2ms latency."*
-- **Viral Mechanism: Zero-Friction `npx lean-token init`**:
+- **Viral Mechanism: Zero-Friction `npx leantoken init`**:
   - One-line command adds `lean` hooks and unified rules to any repo in 2 seconds.
 - **Comparison Benchmarks**:
-  - Public side-by-side video & benchmark charts: LeanToken (0.2ms) vs Headroom (1,840ms).
+  - Public side-by-side video and benchmark charts: LeanToken versus an in-flight proxy, using clearly documented test conditions.
 
 ### 1.2 Content Creator
 - **Benchmark Whitepaper**:
@@ -25,7 +25,7 @@
 
 ### 1.3 Social Media Strategist
 - **Twitter/X & LinkedIn Campaign**:
-  - Launch thread breaking down the 16-day Headroom review math (626M tokens, 1.5% savings, $1,142 phantom cache savings vs $37 real compression).
+  - Publish a transparent analysis of the reviewed 16-day proxy benchmark, including its scope, assumptions, and limitations.
   - Reveal LeanToken as the open-source community answer.
 - **Developer Subreddits**:
   - Showcase in `r/ClaudeAI`, `r/LocalLLaMA`, `r/cursor`, and Hacker News Show HN.

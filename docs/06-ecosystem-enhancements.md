@@ -1,14 +1,14 @@
-# 06. Ecosystem Enhancements & Headroom Add-on Deconstruction
+# 06. Ecosystem Enhancements & Marketplace Integration Considerations
 
-This document analyzes the 8 add-ons bundled in Headroom AI's marketplace, reveals why their bundled implementation failed in real-world benchmarks, and defines the enhanced architectural stack for **LeanToken**.
+This document reviews marketplace-style agent tooling and integration considerations, then describes an alternative architectural stack for **LeanToken**. Observations from a particular setup or benchmark may not apply to other products or workloads.
 
 ---
 
-## 1. Deconstructing the Headroom Add-on Marketplace
+## 1. Marketplace-Style Agent Tooling
 
-The screenshots reveal a critical truth about Headroom AI: **almost all of its actual token savings come from open-source community tools, not its proprietary proxy engine.**
+The tools below illustrate common categories of community and open-source extensions used alongside coding agents:
 
-| Add-on in Headroom | Creator / Repository | Mechanism | Headroom's Role |
+| Tool | Creator / Repository | Mechanism | Integration Type |
 | :--- | :--- | :--- | :--- |
 | **Ponytail** (`v4.9.0`) | `DietrichGebert/ponytail` | Enforces YAGNI ladder; prevents over-engineered code and bloat | Third-party plugin wrapper |
 | **Caveman** (`v4.2.0`) | `JuliusBrussee/caveman` | Enforces telegraphic caveman-speak; cuts 35%–65% output tokens | Third-party plugin wrapper |
@@ -21,15 +21,15 @@ The screenshots reveal a critical truth about Headroom AI: **almost all of its a
 
 ---
 
-## 2. Why Headroom's Add-on Bundle Failed in the 626M-Token Benchmark
+## 2. Integration Observations from One Benchmark Setup
 
-In the 16-day production review, despite having these add-ons enabled:
+In one 16-day production review, the tested setup reported:
 - **RTK recorded 0 commands in its database.**
 - **CCR (Compress-Cache-Retrieve) stored only 1 item.**
 - **OpenCode/MCP saw zero usage.**
 - **Net compression remained at a dismal 1.53%.**
 
-### Root Causes of Failure:
+### Possible Factors in the Reviewed Setup:
 
 ### 1. The MCP "Schema Tax" (Hidden Context Bloat)
 Notice the fine print on Serena: *"adds its tool definitions to every request."*
@@ -37,24 +37,23 @@ When an agent loads 4 MCP servers (Serena, Codebase Memory, Context7, MarkItDown
 - Tool schema overhead: **3,000 to 7,000 tokens per turn**.
 - If the agent only calls Serena once in a 20-turn session, the developer paid **60,000 to 140,000 tokens** in tool schema overhead just to save a few thousand tokens on a file read.
 
-### 2. Broken Hook Plumbing on Windows / Cross-Platform
-RTK relies on a pre-tool execution hook (e.g. rewriting bash calls before the LLM runs them).
-Headroom attempted to wrap RTK inside its Electron GUI app. On Windows (where shells alternate between PowerShell, Git Bash, WSL, and CMD), Headroom failed to wire the execution hook into Claude Code's environment. The result: RTK was completely bypassed, and 0 commands were rewritten.
+### 2. Shell Hook Configuration Across Platforms
 
-### 3. Marketplace Conflict & Redundancy
-Chisle's own description warns: *"Covers what Ponytail and Caveman do, so use it instead of them, not alongside."*
-Yet Headroom displays all three in the same UI, allowing developers to enable Ponytail, Caveman, and Chisle simultaneously.
-- When multiple formatting plugins run at once, they inject competing instructions into the prompt cache.
-- The model suffers prompt confusion, output formatting fluctuates, and tokens are wasted on redundant instructions.
+RTK relies on a pre-tool execution hook (e.g. rewriting shell calls before the LLM runs them). Hook setup must account for the active shell and agent environment; in the reviewed configuration, the hook did not run and no commands were rewritten.
 
-### 4. The Proprietary Walled Garden on `--learn`
-The single feature that actually provided lasting value in Headroom was its `--learn` session analyzer. Yet Headroom locked `--learn` inside its closed-source proxy, leaving open-source developers without a free, standalone tool for mining repo footguns.
+### 3. Potential Marketplace Conflict & Redundancy
+
+Some extensions overlap in purpose; for example, Chisle's description advises using it instead of Ponytail and Caveman, rather than alongside them. Enabling overlapping tools together may add redundant or competing prompt instructions.
+- Multiple formatting plugins can add redundant or competing instructions; the effect depends on their configuration and the agent.
+
+### 4. Availability of Session-Learning Features
+Session-learning features can be tied to a particular product or proxy. A standalone implementation can make transcript analysis available independently.
 
 ---
 
 ## 3. How LeanToken Enhances and Fixes the Stack
 
-LeanToken replaces Headroom's bloated wrapper with an orchestrated, zero-latency open-source engine:
+LeanToken offers an orchestrated, local-first open-source implementation:
 
 ```
 ┌────────────────────────────────────────────────────────────────────────┐
@@ -89,7 +88,7 @@ LeanToken replaces Headroom's bloated wrapper with an orchestrated, zero-latency
 
 ## 4. Evaluation of Additional Free Open-Source Tools to Integrate
 
-To further outclass Headroom, LeanToken integrates:
+Potential complementary tools and integrations include:
 
 1. **Tree-sitter / AST-Grep (`ast-grep`)**:
    - Instead of dumb text search, allows the agent to search for syntactic code patterns (`find all calls to function X matching signature Y`). Cuts search output tokens by 80%.

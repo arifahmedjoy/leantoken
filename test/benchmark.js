@@ -66,8 +66,8 @@ console.log(`  Average:        ${avg} ms`);
 console.log(`  Median (p50):   ${p50} ms`);
 console.log(`  90th %ile:      ${p90} ms`);
 console.log(`  99th %ile:      ${p99} ms`);
-console.log(`  Headroom Base:  1,840.00 ms (typical ML proxy)`);
-console.log(`  Speedup:        ${(1840 / avg).toFixed(1)}x faster than Headroom`);
+console.log(`  Proxy Baseline: 1,840.00 ms (illustrative comparison)`);
+console.log(`  Ratio:          ${(1840 / avg).toFixed(1)}x lower pruning overhead`);
 console.log('════════════════════════════════════════════════════════════');
 
 if (parseFloat(avg) > 5.0) {
