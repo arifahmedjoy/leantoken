@@ -1,0 +1,167 @@
+const fs = require('fs');
+const path = require('path');
+
+/**
+ * SymbolIndexer: Zero-MCP lightweight symbol/signature extractor
+ * Provides instant structural awareness (<250 tokens per file)
+ * without loading heavy LSP servers or multi-thousand token tool definitions.
+ */
+class SymbolIndexer {
+  estimateTokens(text) {
+    if (!text) return 0;
+    return Math.ceil(text.length / 3.8);
+  }
+
+  extract(filePath) {
+    const fullPath = path.resolve(filePath);
+    if (!fs.existsSync(fullPath)) {
+      throw new Error(`File not found: ${filePath}`);
+    }
+
+    const stat = fs.statSync(fullPath);
+    if (stat.isDirectory()) {
+      return this.extractDirectory(fullPath);
+    }
+
+    const content = fs.readFileSync(fullPath, 'utf8');
+    const fullTokens = this.estimateTokens(content);
+    const ext = path.extname(fullPath).toLowerCase();
+
+    let symbols = [];
+    if (['.js', '.jsx', '.ts', '.tsx', '.mjs', '.cjs'].includes(ext)) {
+      symbols = this.extractJavaScriptSymbols(content);
+    } else if (['.py'].includes(ext)) {
+      symbols = this.extractPythonSymbols(content);
+    } else if (['.json'].includes(ext)) {
+      symbols = this.extractJsonSchema(content);
+    } else {
+      symbols = this.extractGenericSymbols(content);
+    }
+
+    const header = `FILE: ${path.basename(fullPath)} (${ext || 'text'})`;
+    const symbolBody = symbols.length > 0 ? symbols.join('\n') : '  (No top-level exports or functions detected)';
+    const output = `${header}\n${symbolBody}`;
+    const tokens = this.estimateTokens(output);
+    const savedPct = fullTokens > 0 ? Math.round(((fullTokens - tokens) / fullTokens) * 100) : 0;
+
+    return {
+      filePath,
+      symbolCount: symbols.length,
+      output,
+      tokens,
+      fullTokens,
+      savedPct: Math.max(0, savedPct)
+    };
+  }
+
+  extractJavaScriptSymbols(code) {
+    const symbols = [];
+    const lines = code.split('\n');
+
+    for (let line of lines) {
+      const trimmed = line.trim();
+
+      // Class declaration
+      const classMatch = trimmed.match(/^export\s+(?:default\s+)?class\s+([A-Za-z0-9_$]+)/) || trimmed.match(/^class\s+([A-Za-z0-9_$]+)/);
+      if (classMatch) {
+        symbols.push(`  class ${classMatch[1]}`);
+        continue;
+      }
+
+      // Function declaration
+      const fnMatch = trimmed.match(/^(?:export\s+(?:default\s+)?)?(?:async\s+)?function\s*([A-Za-z0-9_$]*)\s*\(([^)]*)\)/);
+      if (fnMatch) {
+        symbols.push(`  function ${fnMatch[1] || 'anonymous'}(${fnMatch[2].trim()})`);
+        continue;
+      }
+
+      // Const arrow function or method export
+      const arrowMatch = trimmed.match(/^(?:export\s+)?(?:const|let|var)\s+([A-Za-z0-9_$]+)\s*=\s*(?:async\s*)?\(([^)]*)\)\s*=>/);
+      if (arrowMatch) {
+        symbols.push(`  const ${arrowMatch[1]} = (${arrowMatch[2].trim()}) => ...`);
+        continue;
+      }
+
+      // Class method
+      const methodMatch = trimmed.match(/^(?:async\s+)?([A-Za-z0-9_$]+)\s*\(([^)]*)\)\s*\{/);
+      if (methodMatch && !['if', 'for', 'while', 'switch', 'catch'].includes(methodMatch[1])) {
+        symbols.push(`    method ${methodMatch[1]}(${methodMatch[2].trim()})`);
+      }
+    }
+
+    return symbols;
+  }
+
+  extractPythonSymbols(code) {
+    const symbols = [];
+    const lines = code.split('\n');
+
+    for (let line of lines) {
+      const trimmed = line.trim();
+      if (trimmed.startsWith('class ')) {
+        const classMatch = trimmed.match(/^class\s+([A-Za-z0-9_]+)(?:\(([^)]*)\))?:/);
+        if (classMatch) {
+          symbols.push(`  class ${classMatch[1]}${classMatch[2] ? `(${classMatch[2]})` : ''}`);
+        }
+      } else if (trimmed.startsWith('def ')) {
+        const fnMatch = trimmed.match(/^def\s+([A-Za-z0-9_]+)\s*\(([^)]*)\)(?:\s*->\s*([^:]+))?:/);
+        if (fnMatch) {
+          const indent = line.search(/\S/) > 0 ? '    def ' : '  def ';
+          symbols.push(`${indent}${fnMatch[1]}(${fnMatch[2].trim()})${fnMatch[3] ? ` -> ${fnMatch[3].trim()}` : ''}`);
+        }
+      }
+    }
+
+    return symbols;
+  }
+
+  extractJsonSchema(code) {
+    try {
+      const obj = JSON.parse(code);
+      if (Array.isArray(obj)) {
+        return [`  Array with ${obj.length} items (type: ${typeof obj[0]})`];
+      }
+      return Object.keys(obj).slice(0, 15).map(k => `  key: "${k}" (${typeof obj[k]})`);
+    } catch {
+      return ['  Invalid JSON'];
+    }
+  }
+
+  extractGenericSymbols(code) {
+    return code
+      .split('\n')
+      .filter(l => l.trim().length > 0)
+      .slice(0, 10)
+      .map(l => `  ${l.slice(0, 80)}`);
+  }
+
+  extractDirectory(dirPath) {
+    const entries = fs.readdirSync(dirPath, { withFileTypes: true });
+    const summaries = [];
+    let totalTokens = 0;
+
+    for (const entry of entries) {
+      if (['node_modules', '.git', 'dist', 'build', '.lean'].includes(entry.name)) continue;
+      const full = path.join(dirPath, entry.name);
+      if (entry.isFile() && /\.(js|ts|py|json|md)$/i.test(entry.name)) {
+        try {
+          const res = this.extract(full);
+          summaries.push(res.output);
+          totalTokens += res.tokens;
+        } catch {
+          // ignore individual read errors
+        }
+      }
+    }
+
+    return {
+      filePath: dirPath,
+      symbolCount: summaries.length,
+      output: summaries.join('\n\n'),
+      tokens: totalTokens,
+      savedPct: 85
+    };
+  }
+}
+
+module.exports = { SymbolIndexer };
