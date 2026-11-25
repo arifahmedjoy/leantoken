@@ -86,24 +86,34 @@ function doctor(cwd = process.cwd()) {
   const shaper = new CognitiveShaper();
   const detected = shaper.detectHosts(cwd, os.homedir());
   ok.push(`Detected AI tools: ${Object.entries(detected).map(([k, why]) => `${k} (${why})`).join(', ')}`);
-  for (const key of Object.keys(detected)) {
-    const file = path.join(cwd, HOSTS[key].repo);
+  const home = os.homedir();
+  const directiveState = file => {
     const text = fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : '';
-    if (text.includes(`Unified Agent Directive (v${DIRECTIVE_VERSION})`)) ok.push(`${HOSTS[key].repo}: directive current`);
-    else if (text.includes('Unified Agent Directive')) warn.push(`${HOSTS[key].repo}: outdated directive (run: lean init)`);
-    else warn.push(`${HOSTS[key].repo}: no directive (run: lean init)`);
+    return text.includes(`Unified Agent Directive (v${DIRECTIVE_VERSION})`) ? 'current' : text.includes('Unified Agent Directive') ? 'outdated' : null;
+  };
+  for (const key of Object.keys(detected)) {
+    const repoState = directiveState(path.join(cwd, HOSTS[key].repo));
+    // A user-level directive (lean init --global) covers every project for that tool
+    const globalFile = [].concat(HOSTS[key].global || []).find(r => directiveState(path.join(home, r)) === 'current');
+    if (repoState === 'current') ok.push(`${HOSTS[key].repo}: directive current`);
+    else if (repoState === 'outdated') warn.push(`${HOSTS[key].repo}: outdated directive (run: lean init)`);
+    else if (globalFile) ok.push(`${HOSTS[key].label}: user-level directive current (~/${globalFile})`);
+    else warn.push(`${HOSTS[key].repo}: no directive (run: lean init, or lean init --global)`);
   }
 
-  const settingsPath = path.join(cwd, '.claude', 'settings.local.json');
   if (detected.claude) {
-    let hooks = [];
-    try { hooks = (JSON.parse(fs.readFileSync(settingsPath, 'utf8')).hooks?.PostToolUse || []).flatMap(g => g.hooks || []).filter(h => shaper.isOurHook(h)); } catch { /* missing or invalid */ }
+    const readHooks = file => {
+      try { return (JSON.parse(fs.readFileSync(file, 'utf8')).hooks?.PostToolUse || []).flatMap(g => g.hooks || []).filter(h => shaper.isOurHook(h)); } catch { return []; }
+    };
+    let scope = 'project';
+    let hooks = readHooks(path.join(cwd, '.claude', 'settings.local.json'));
+    if (!hooks.length) { hooks = readHooks(path.join(home, '.claude', 'settings.json')); scope = 'user-level'; }
     if (!hooks.length) warn.push('Claude Code auto-prune hook not installed (run: lean init)');
     else {
       const paths = [...hooks[0].command.matchAll(/"([^"]+)"/g)].map(m => m[1]);
       const missing = paths.filter(p => !fs.existsSync(p));
-      if (missing.length) bad.push(`Claude hook points to missing files: ${missing.join(', ')} (run: lean init)`);
-      else ok.push(`Claude Code auto-prune hook: ${hooks.length} command filters, paths valid`);
+      if (missing.length) bad.push(`Claude hook points to missing files: ${missing.join(', ')} (run: lean init${scope === 'user-level' ? ' --global' : ''})`);
+      else ok.push(`Claude Code auto-prune hook (${scope}): ${hooks.length} command filters, paths valid`);
     }
   }
 

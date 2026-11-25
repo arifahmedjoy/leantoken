@@ -49,9 +49,10 @@ lean uninstall
   - `--only=claude,copilot,...` picks tools explicitly and `--all` writes every
     tool. `--no-hooks` skips the hook and `--dry-run` previews.
   - `--global` writes user-level files instead: `~/.claude/CLAUDE.md`, the hook
-    in `~/.claude/settings.json`, and `~/.gemini/GEMINI.md`,
-    `~/.codex/AGENTS.md` and `~/.config/opencode/AGENTS.md` when those tools
-    are installed.
+    in `~/.claude/settings.json`, and `~/.gemini/GEMINI.md` (Gemini CLI,
+    Antigravity), `~/.codex/AGENTS.md`, `~/.config/opencode/AGENTS.md` and
+    `~/.copilot/copilot-instructions.md` when those tools are installed.
+    `--only` also accepts `opencode`, `codex` and `antigravity`.
 
   See `docs/11-integration-plan.md` for which file each tool and editor reads.
 - `doctor` checks Node.js, PATH, detected tools, directive versions, the hook's

@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `lean remove [--only=<hosts>] [--purge]`: undoes `init` in one project and restores files to their previous content.
 - `lean uninstall [--purge]`: undoes `init` in every project it was set up in, then prints the command that removes the CLI itself.
 - `--dry-run`, `--no-hooks` and `--global` options for `init`.
+- `--global` also writes GitHub Copilot's user-level instructions (`~/.copilot/copilot-instructions.md`). `--only` accepts `opencode`, `codex` and `antigravity`, so `lean init --global --only=opencode` writes only OpenCode's file.
 - `CHANGELOG.md` and release scripts. `npm version` stamps the changelog and tags the release, and `npm publish` is refused if the version has no changelog entry.
 
 ### Changed

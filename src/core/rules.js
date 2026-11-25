@@ -37,9 +37,9 @@ const HOSTS = {
     repoSignals: ['GEMINI.md', '.gemini'], homeSignals: ['.gemini']
   },
   copilot: {
-    repo: '.github/copilot-instructions.md', label: 'GitHub Copilot (VS Code, Visual Studio, JetBrains, Android Studio)',
+    repo: '.github/copilot-instructions.md', global: '.copilot/copilot-instructions.md', label: 'GitHub Copilot (VS Code, Visual Studio, JetBrains, Android Studio)',
     repoSignals: ['.github/copilot-instructions.md', '.github/instructions', '.github/prompts'],
-    homeSignals: ['.config/github-copilot', 'AppData/Local/github-copilot', '.vscode/extensions/github.copilot*']
+    homeSignals: ['.copilot', '.config/github-copilot', 'AppData/Local/github-copilot', '.vscode/extensions/github.copilot*']
   },
   cursor: {
     repo: '.cursorrules', label: 'Cursor',
@@ -58,6 +58,29 @@ const HOSTS = {
     repoSignals: ['.junie'], homeSignals: []
   }
 };
+
+// Tool names accepted by --only that map onto a shared host (and, for --global, one of its files)
+const ALIASES = {
+  opencode: { key: 'agents', global: '.config/opencode/AGENTS.md' },
+  codex: { key: 'agents', global: '.codex/AGENTS.md' },
+  antigravity: { key: 'gemini' }
+};
+
+/** Expand --only names: returns host keys plus, per key, the global files to limit to (absent = all). */
+function expandOnly(names) {
+  const keys = [];
+  const pick = {};
+  const unknown = [];
+  for (const n of names) {
+    const a = ALIASES[n];
+    const key = HOSTS[n] ? n : a && a.key;
+    if (!key) { unknown.push(n); continue; }
+    if (!keys.includes(key)) keys.push(key);
+    if (HOSTS[n] || !a.global) pick[key] = null;
+    else if (pick[key] !== null) (pick[key] = pick[key] || []).push(a.global);
+  }
+  return { keys, pick, unknown };
+}
 
 // Claude Code runs the hook only for commands that can produce prunable noise (no Node start for cat/grep/sed)
 const HOOK_PREFIXES = {
@@ -179,13 +202,13 @@ ${END}
     return found;
   }
 
-  resolveTargets(isGlobal, keys, cwd = process.cwd()) {
+  resolveTargets(isGlobal, keys, cwd = process.cwd(), pick = {}) {
     const base = isGlobal ? os.homedir() : cwd;
     const targets = [];
     for (const key of keys) {
       const host = HOSTS[key];
       const rel = isGlobal ? host.global : host.repo;
-      for (const r of [].concat(rel || [])) targets.push({ key, file: path.join(base, r), front: host.front || '' });
+      for (const r of [].concat(rel || [])) if (!isGlobal || !pick[key] || pick[key].includes(r)) targets.push({ key, file: path.join(base, r), front: host.front || '' });
     }
     return targets;
   }
@@ -281,19 +304,21 @@ ${END}
     const rel = f => fwd(path.relative(cwd, f) || f);
 
     let chosen;
+    let pick = {};
     if (options.only && options.only.length) {
-      const unknown = options.only.filter(k => !HOSTS[k]);
-      if (unknown.length) {
-        return { success: false, modified: [], message: `Error: unknown host(s): ${unknown.join(', ')}. Valid: ${Object.keys(HOSTS).join(', ')}` };
+      const ex = expandOnly(options.only);
+      if (ex.unknown.length) {
+        return { success: false, modified: [], message: `Error: unknown host(s): ${ex.unknown.join(', ')}. Valid: ${[...Object.keys(HOSTS), ...Object.keys(ALIASES)].join(', ')}` };
       }
-      chosen = Object.fromEntries(options.only.map(k => [k, 'requested']));
+      chosen = Object.fromEntries(ex.keys.map(k => [k, 'requested']));
+      pick = ex.pick;
     } else if (options.all) {
       chosen = Object.fromEntries(Object.keys(HOSTS).map(k => [k, 'all']));
     } else {
       chosen = this.detectHosts(cwd, home);
     }
     const auto = !(options.only && options.only.length) && !options.all;
-    const targets = this.resolveTargets(isGlobal, Object.keys(chosen));
+    const targets = this.resolveTargets(isGlobal, Object.keys(chosen), cwd, pick);
     // npx runs from a temporary cache: a hook pointing there would break once the cache is cleared
     const ephemeral = /[\\/]_npx[\\/]/.test(LEAN_JS);
     const wantsHook = options.hooks !== false && !!chosen.claude && !ephemeral;
@@ -366,12 +391,12 @@ ${END}
   remove(options = {}) {
     const isGlobal = !!options.global;
     const base = isGlobal ? os.homedir() : (options.cwd || process.cwd());
-    const keys = options.only && options.only.length ? options.only : Object.keys(HOSTS);
-    const unknown = keys.filter(k => !HOSTS[k]);
-    if (unknown.length) return { success: false, message: `Error: unknown host(s): ${unknown.join(', ')}` };
+    const ex = expandOnly(options.only && options.only.length ? options.only : Object.keys(HOSTS));
+    if (ex.unknown.length) return { success: false, message: `Error: unknown host(s): ${ex.unknown.join(', ')}` };
+    const keys = ex.keys;
     const rel = f => fwd(path.relative(base, f) || f);
     const changes = [];
-    for (const t of this.resolveTargets(isGlobal, keys, base)) {
+    for (const t of this.resolveTargets(isGlobal, keys, base, ex.pick)) {
       const r = this.removeFromFile(t.file, t.front, base);
       if (r) changes.push(`${rel(t.file)} (${r})`);
     }

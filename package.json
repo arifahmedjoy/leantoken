@@ -1,10 +1,10 @@
 {
 	"name": "@arifahmedjoy/leantoken",
-	"version": "0.1.0",
+	"version": "0.2.0",
 	"description": "Zero-latency, zero-toggle AI token compression and optimization engine for coding agents",
 	"main": "src/index.js",
 	"bin": {
-		"lean": "./bin/lean.js"
+		"lean": "bin/lean.js"
 	},
 	"files": [
 		"bin/",
@@ -33,7 +33,7 @@
 	"license": "MIT",
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/arifahmedjoy/leantoken.git"
+		"url": "git+https://github.com/arifahmedjoy/leantoken.git"
 	},
 	"bugs": {
 		"url": "https://github.com/arifahmedjoy/leantoken/issues"
