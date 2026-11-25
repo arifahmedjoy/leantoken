@@ -1,5 +1,9 @@
 # LeanToken (Zero-Latency Token Optimization Engine)
 
+[![CI](https://github.com/arifahmedjoy/lean-token/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/arifahmedjoy/lean-token/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Node.js 18+](https://img.shields.io/badge/Node.js-18%2B-339933)](https://nodejs.org/)
+
 > **Mission**: Maximize AI coding agent efficiency and slash token costs without degrading reasoning quality, code correctness, or responsiveness.
 
 ---
@@ -54,3 +58,29 @@ D:\lean-token\
 | **File Dump Waste** | Compresses bloated files after the read | **Prevents read** via symbol indexing (Serena) |
 | **Cost** | Commercial / Subscription | **100% Free & Open Source** |
 | **Code Quality Impact** | Risk of hallucination on compressed code | **Zero degradation** (AST-sound, exact diffs) |
+
+## Getting started
+
+LeanToken requires Node.js 18 or later and has no external package dependencies.
+Run it from a checkout:
+
+```sh
+git clone https://github.com/arifahmedjoy/lean-token.git
+cd lean-token
+node bin/lean.js help
+node bin/lean.js prune git status
+```
+
+See the [usage guide](docs/usage.md) for all current CLI commands, shell hooks,
+and notes about local runtime data.
+
+## Development
+
+```sh
+npm test
+npm run benchmark
+```
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution and verification
+guidance. The project is distributed under the [MIT License](LICENSE); security
+issues should be reported according to [SECURITY.md](SECURITY.md).
