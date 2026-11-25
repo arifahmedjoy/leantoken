@@ -3,6 +3,17 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
+// Every file and folder (relative path -> content) except .git internals
+function snapshot(dir, rel = '') {
+  const out = {};
+  for (const e of fs.readdirSync(path.join(dir, rel), { withFileTypes: true })) {
+    const r = path.join(rel, e.name);
+    if (r === '.git') continue;
+    if (e.isDirectory()) { out[r + '/'] = ''; Object.assign(out, snapshot(dir, r)); } else out[r] = fs.readFileSync(path.join(dir, r), 'utf8');
+  }
+  return out;
+}
+
 function testInstallUninstallRoundTrip() {
   const saved = { HOME: process.env.HOME, USERPROFILE: process.env.USERPROFILE, LEANTOKEN_CONFIG_DIR: process.env.LEANTOKEN_CONFIG_DIR };
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'lean-life-'));
@@ -12,11 +23,14 @@ function testInstallUninstallRoundTrip() {
   const { CognitiveShaper } = require('../src/core/rules');
   const life = require('../src/core/lifecycle');
   const cwd = process.cwd();
+  const before = {};
   try {
     const projects = ['a', 'b'].map(n => {
       const dir = path.join(tmp, n);
       fs.mkdirSync(path.join(dir, '.git'), { recursive: true });
       fs.writeFileSync(path.join(dir, 'CLAUDE.md'), '# Mine\n');
+      if (n === 'a') fs.writeFileSync(path.join(dir, '.gitignore'), 'node_modules/\n');
+      before[dir] = snapshot(dir);
       process.chdir(dir);
       assert(new CognitiveShaper().init({}).success);
       life.trackProject(dir);
@@ -31,8 +45,7 @@ function testInstallUninstallRoundTrip() {
     const res = life.uninstall({ purge: true });
     assert(res.success && /npm (rm|unlink) -g/.test(res.message), res.message);
     for (const dir of projects) {
-      assert.strictEqual(fs.readFileSync(path.join(dir, 'CLAUDE.md'), 'utf8'), '# Mine\n', 'user file restored exactly');
-      assert(!fs.existsSync(path.join(dir, '.claude', 'settings.local.json')), 'hook-only settings file removed');
+      assert.deepStrictEqual(snapshot(dir), before[dir], `${path.basename(dir)}: every file and folder restored exactly`);
     }
     assert(!fs.existsSync(process.env.LEANTOKEN_CONFIG_DIR), 'no config left behind');
   } finally {

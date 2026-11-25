@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- `lean remove` and `lean uninstall` left the `.gitignore` lines that `init` added, and an empty `.claude/` folder. `init` now writes its `.gitignore` lines under a `# LeanToken` marker, and `remove` deletes exactly those lines (and `.gitignore` itself if LeanToken created it). Lines written by 0.2.0 have no marker, so remove them by hand once.
+
 ## [0.2.0] - 2026-11-26
 
 ### Added

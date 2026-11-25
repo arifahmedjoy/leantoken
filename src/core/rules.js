@@ -59,6 +59,9 @@ const HOSTS = {
   }
 };
 
+const GITIGNORE_MARK = '# LeanToken (removed by `lean remove`)';
+const GITIGNORE_LINES = ['.lean/', '.claude/settings.local.json'];
+
 // Tool names accepted by --only that map onto a shared host (and, for --global, one of its files)
 const ALIASES = {
   opencode: { key: 'agents', global: '.config/opencode/AGENTS.md' },
@@ -264,7 +267,10 @@ ${END}
     settings.hooks.PostToolUse = this.withoutOurHooks(list);
     if (!settings.hooks.PostToolUse.length) delete settings.hooks.PostToolUse;
     if (!Object.keys(settings.hooks).length) delete settings.hooks;
-    if (!Object.keys(settings).length && path.basename(settingsPath) === 'settings.local.json') fs.unlinkSync(settingsPath);
+    if (!Object.keys(settings).length && path.basename(settingsPath) === 'settings.local.json') {
+      fs.unlinkSync(settingsPath);
+      try { fs.rmdirSync(path.dirname(settingsPath)); } catch { /* .claude/ still holds other files */ }
+    }
     else fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2) + '\n', 'utf8');
     return true;
   }
@@ -290,10 +296,32 @@ ${END}
     if (!fs.existsSync(path.join(cwd, '.git'))) return [];
     const p = path.join(cwd, '.gitignore');
     const existing = fs.existsSync(p) ? fs.readFileSync(p, 'utf8') : '';
-    const have = new Set(existing.split(/\r?\n/).map(l => l.trim()));
+    const rows = existing.split(/\r?\n/);
+    const have = new Set(rows.map(l => l.trim()));
     const missing = lines.filter(l => !have.has(l));
-    if (missing.length) fs.writeFileSync(p, `${existing.trimEnd()}${existing ? '\n' : ''}${missing.join('\n')}\n`, 'utf8');
+    if (!missing.length) return [];
+    // Lines go under a marker so `lean remove` deletes only what LeanToken added
+    const at = rows.findIndex(l => l.trim() === GITIGNORE_MARK);
+    const updated = at >= 0
+      ? [...rows.slice(0, at + 1), ...missing, ...rows.slice(at + 1)].join('\n')
+      : `${existing.trimEnd()}${existing.trim() ? '\n\n' : ''}${GITIGNORE_MARK}\n${missing.join('\n')}\n`;
+    fs.writeFileSync(p, updated, 'utf8');
     return missing;
+  }
+
+  /** Delete the lines ensureGitignore added (those under its marker); delete .gitignore if nothing else is left. */
+  removeGitignore(base) {
+    const p = path.join(base, '.gitignore');
+    if (!fs.existsSync(p)) return null;
+    const rows = fs.readFileSync(p, 'utf8').split(/\r?\n/);
+    const at = rows.findIndex(l => l.trim() === GITIGNORE_MARK);
+    if (at < 0) return null;
+    let end = at + 1;
+    while (end < rows.length && GITIGNORE_LINES.includes(rows[end].trim())) end++;
+    const rest = [...rows.slice(0, at), ...rows.slice(end)].join('\n').replace(/\n{3,}/g, '\n\n').trim();
+    if (rest) { fs.writeFileSync(p, `${rest}\n`, 'utf8'); return 'cleaned'; }
+    fs.unlinkSync(p);
+    return 'deleted';
   }
 
   init(options = {}) {
@@ -403,6 +431,10 @@ ${END}
     if (keys.includes('claude')) {
       const settingsPath = isGlobal ? path.join(base, '.claude', 'settings.json') : path.join(base, '.claude', 'settings.local.json');
       if (this.removeClaudeHook(settingsPath)) changes.push(`${rel(settingsPath)} (hook removed)`);
+    }
+    if (!isGlobal && !(options.only && options.only.length)) {
+      const gi = this.removeGitignore(base);
+      if (gi) changes.push(`.gitignore (${gi})`);
     }
     if (options.purge && !isGlobal && fs.existsSync(path.join(base, '.lean'))) {
       fs.rmSync(path.join(base, '.lean'), { recursive: true, force: true });
