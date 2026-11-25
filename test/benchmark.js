@@ -3,6 +3,8 @@
  * Validates that pruning overhead strictly remains under 3.00 ms (P99 < 5.00 ms)
  */
 const { CommandPruner } = require('../src/core/pruner');
+// Raw logs go to a temp dir: tests must not write into the repository
+const LOG_DIR = require('fs').mkdtempSync(require('path').join(require('os').tmpdir(), 'lean-test-'));
 
 const sampleGitStatus = `
 On branch feature/auth
@@ -32,7 +34,7 @@ no changes added to commit (use "git add" to track)
 `;
 
 const ITERATIONS = 1000;
-const pruner = new CommandPruner();
+const pruner = new CommandPruner({ logDir: LOG_DIR });
 const durations = [];
 
 console.log('════════════════════════════════════════════════════════════');

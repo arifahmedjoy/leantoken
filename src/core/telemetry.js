@@ -20,7 +20,7 @@ class Telemetry {
     }
 
     return {
-      version: '0.1.0',
+      version: require('../../package.json').version,
       totalPrunes: 0,
       rawTokens: 0,
       prunedTokens: 0,

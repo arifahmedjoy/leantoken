@@ -1,10 +1,12 @@
 const assert = require('assert');
 const { CommandPruner } = require('../src/core/pruner');
+// Raw logs go to a temp dir: tests must not write into the repository
+const LOG_DIR = require('fs').mkdtempSync(require('path').join(require('os').tmpdir(), 'lean-test-'));
 const fs = require('fs');
 const path = require('path');
 
 function testGitStatusPruning() {
-  const pruner = new CommandPruner();
+  const pruner = new CommandPruner({ logDir: LOG_DIR });
   const verboseOutput = `
 On branch main
 Your branch is up to date with 'origin/main'.
@@ -43,7 +45,7 @@ no changes added to commit (use "git add" to track)
 }
 
 function testLockfileDiffPruning() {
-  const pruner = new CommandPruner();
+  const pruner = new CommandPruner({ logDir: LOG_DIR });
   const diffOutput = `
 diff --git a/package-lock.json b/package-lock.json
 index 123456..789abc 100644
@@ -67,7 +69,7 @@ diff --git a/src/index.js b/src/index.js
 }
 
 function testPassingTestPruning() {
-  const pruner = new CommandPruner();
+  const pruner = new CommandPruner({ logDir: LOG_DIR });
   const passingTestOutput = `
 PASS test/auth.test.js
   ✓ should login successfully (42 ms)
@@ -89,7 +91,7 @@ Ran all test suites.
 }
 
 function testFailOpenSafety() {
-  const pruner = new CommandPruner();
+  const pruner = new CommandPruner({ logDir: LOG_DIR });
   // Pass an unusual string that might break poorly written parsers
   const weird = null;
   const res = pruner.prune('random-command', 'hello world normal output');

@@ -18,31 +18,66 @@ const args = process.argv.slice(2);
 const command = args[0];
 
 function printHelp() {
+  const { version } = require('../package.json');
   console.log(`
-⚡ LeanToken v0.2.0 - Zero-Latency AI Token Optimizer
+⚡ LeanToken v${version} - Zero-Latency AI Token Optimizer
 
-Usage:
-  lean init [--global] [--only=<hosts>] [--no-hooks] [--dry-run]
-                             Configure agent instructions for every major AI host
-                             (hosts: claude,agents,gemini,copilot,cursor,windsurf,cline,junie)
-                             and the Claude Code auto-prune hook
-  lean prune <command...>    Execute a command and prune output (saves full CCR log)
+Quick start (in your project):
+  lean init                  Set up the AI tools you use (auto-detected)
+  lean doctor                Check that everything works
+  lean uninstall             Remove LeanToken from every project it was set up in
+
+Setup:
+  lean init [--only=<hosts>|--all] [--no-hooks] [--dry-run] [--global]
+                             hosts: claude,agents,gemini,copilot,cursor,windsurf,cline,junie
+  lean remove [--only=<hosts>] [--purge] [--global]
+                             Undo init in this project; --purge also deletes .lean/
+  lean uninstall [--purge]   Undo init everywhere, then prints the command to remove the CLI
+  lean doctor                Diagnose Node, PATH, directives, hook and logs
+
+Daily use:
+  lean prune <command...>    Run a command and prune its output (raw log kept in .lean/logs/)
   lean symbols <file|dir>    Extract clean symbol signatures (<250 tokens per file)
   lean learn [transcript]    Mine session transcripts out-of-band for MEMORY.md
-  lean stats                 Display lifetime token savings and latency telemetry
-  lean statusline            Output formatted one-line status for terminal prompt/statusline
-  lean help                  Show this help text
+  lean stats | statusline    Token savings and latency telemetry
+  lean --version | help
 `);
+}
+
+function parseOnly() {
+  const onlyArg = args.find(a => a.startsWith('--only='));
+  return onlyArg ? onlyArg.slice('--only='.length).split(',').map(s => s.trim()).filter(Boolean) : null;
 }
 
 switch (command) {
   case 'init': {
     const isGlobal = args.includes('--global') || args.includes('-g');
     const dryRun = args.includes('--dry-run');
-    const onlyArg = args.find(a => a.startsWith('--only='));
-    const only = onlyArg ? onlyArg.slice('--only='.length).split(',').map(s => s.trim()).filter(Boolean) : null;
     const shaper = new CognitiveShaper();
-    const result = shaper.init({ global: isGlobal, dryRun, only, hooks: !args.includes('--no-hooks') });
+    const result = shaper.init({ global: isGlobal, dryRun, only: parseOnly(), all: args.includes('--all'), hooks: !args.includes('--no-hooks') });
+    if (!result.success) process.exitCode = 1;
+    else if (!isGlobal && !dryRun) require('../src/core/lifecycle').trackProject(process.cwd()); // so `lean uninstall` can find it
+    console.log(result.message);
+    break;
+  }
+
+  case 'remove': {
+    const isGlobal = args.includes('--global') || args.includes('-g');
+    const only = parseOnly();
+    const result = new CognitiveShaper().remove({ global: isGlobal, only, purge: args.includes('--purge') });
+    if (!result.success) process.exitCode = 1;
+    else if (!isGlobal && !only) require('../src/core/lifecycle').untrackProject(process.cwd());
+    console.log(result.message);
+    break;
+  }
+
+  case 'uninstall': {
+    console.log(require('../src/core/lifecycle').uninstall({ purge: args.includes('--purge') }).message);
+    break;
+  }
+
+  case 'doctor': {
+    const result = require('../src/core/lifecycle').doctor();
     if (!result.success) process.exitCode = 1;
     console.log(result.message);
     break;
@@ -85,10 +120,10 @@ switch (command) {
 
     // Append summary footer
     if (pruneRes.savedTokens > 0) {
-      process.stdout.write(`\n[LeanToken: pruned ${pruneRes.linesSaved} lines (-${pruneRes.savedPct}% tokens in ${pruneRes.pruneDurationMs.toFixed(2)}ms) | Raw: ${pruneRes.spoolPath}]\n`);
+      process.stdout.write(`\n[LeanToken: pruned ${pruneRes.linesSaved} lines (-${pruneRes.savedPct}% tokens in ${pruneRes.pruneDurationMs.toFixed(2)}ms) | Raw: ${pruneRes.spoolPath || "not saved"}]\n`);
     }
 
-    process.exit(proc.status || 0);
+    process.exit(proc.status ?? 1); // killed by a signal or failed to start: report failure
     break;
   }
 

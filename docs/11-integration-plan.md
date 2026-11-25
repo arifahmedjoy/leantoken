@@ -14,7 +14,7 @@ v0.1 assumed that writing a directive into `CLAUDE.md` was enough. A replay of 4
 v0.2 rests on three rules:
 
 1. **Instructions are not integration.** A directive only helps if the agent can run `lean`. Pruning is automatic only where a host hook exists.
-2. **Never prune content the agent asked for.** Automatic pruning covers only output that is mostly noise: test runs, `git status`, `git diff` and directory listings, run as one simple command. File reads, `grep`, JSON and `git log` pass through untouched.
+2. **Never prune content the agent asked for.** Automatic pruning covers only output that is mostly noise: test runs, builds and installs, `git status`, `git diff` and directory listings, run as one simple command. File reads, `grep`, JSON and `git log` pass through untouched.
 3. **Fail open.** Any hook error returns the original output. A hook never blocks a tool call and never changes permissions.
 
 ## 2. Two integration layers
@@ -28,7 +28,7 @@ Where layer B is installed, that host's directive says pruning is automatic and 
 
 ## 3. Coverage: AI hosts
 
-`lean init` writes all of these by default. `--only=<keys>` narrows the list.
+`lean init` writes only the hosts it detects: repo files with non-LeanToken content, or the tool's folder in your home directory. `AGENTS.md` is the fallback when nothing is detected. `--only=<keys>` picks hosts explicitly; `--all` writes every row.
 
 | Key | File written | AI hosts that read it | Status |
 |---|---|---|---|
@@ -66,6 +66,13 @@ An editor is covered through the AI host running inside it, not by itself.
 - Claude Code `PostToolUse` hook using `updatedToolOutput`. The tool runs unchanged, so permissions are untouched; only the output Claude sees is pruned.
 - Routing fixes: test detection needs an actual test-runner command; listing folds match whole path segments only; failure detection is broader.
 - `.gitignore` gets `.lean/` and `.claude/settings.local.json`.
+- Host detection: only tools the project or machine uses get files. Re-running `init` deletes LeanToken-only files for tools no longer detected.
+- No up-front `.lean/`. Raw logs are written only when output was pruned, one per run, capped at 20.
+- Adaptive back-off: two raw-log reads of the same command stop pruning it in that project.
+- Build/install route; terminal output (CRLF, ANSI, progress redraws) normalized the same on every OS.
+- Lifecycle: `lean doctor`, `lean remove`, `lean uninstall`; hook calls Node by absolute path, and is skipped when run from npx.
+- Versioning: `CHANGELOG.md` (Keep a Changelog), `npm version` stamps it, `prepublishOnly` and CI refuse a version without an entry.
+- CI on Ubuntu, Windows and macOS, Node 18/20/22.
 
 ### Phase 2 — more hosts get automatic pruning
 For each host, confirm the hook API against current docs before building. Each needs its own `lean hook <host>` adapter and a live session test.
@@ -80,7 +87,7 @@ For each host, confirm the hook API against current docs before building. Each n
 
 ### Phase 3 — bigger savings (based on the aricon data)
 1. **MCP tool output.** The largest single output in aricon was about 10.8k tokens from one MCP tool. Claude's `updatedToolOutput` also works for MCP tools, so add a size-capped JSON summarizer with the raw output spooled.
-2. **One spool file per run.** `last-command.log` is overwritten on every run, so a later command can wipe the raw output an earlier pruned result points to. Switch to `.lean/logs/<timestamp>-<route>.log` and keep the last N.
+2. ~~**One spool file per run.**~~ Done: raw output is saved to `.lean/logs/<time>-<command>.log`, capped at 20 files.
 3. **Fewer duplicate directives.** Some hosts read two files (for example, Copilot in VS Code reads both `AGENTS.md` and copilot-instructions), which costs about 300 tokens twice per session. Make secondary files short pointers where the host supports imports.
 4. **Cursor rule format.** Move from `.cursorrules` to `.cursor/rules/leantoken.mdc` (`alwaysApply: true`) and migrate existing blocks.
 

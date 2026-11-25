@@ -4,7 +4,7 @@ const fs = require('fs');
 const path = require('path');
 
 function testLearnerOutdatedTranscript() {
-  const testMemoryPath = path.join(__dirname, 'temp-MEMORY.md');
+  const testMemoryPath = path.join(fs.mkdtempSync(path.join(require('os').tmpdir(), 'lean-learn-')), 'MEMORY.md');
   const learner = new SessionLearner({ memoryPath: testMemoryPath });
   
   // Simulate synthetic transcript entries

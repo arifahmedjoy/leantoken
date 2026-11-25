@@ -23,6 +23,9 @@ jobs:
       with:
         node-version: ${{ matrix.node-version }}
 
+    - name: Check changelog entry for package version
+      run: node scripts/changelog.js --check
+
     - name: Run Unit Tests
       run: node test/runner.js
 

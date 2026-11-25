@@ -1,6 +1,6 @@
 {
 	"name": "@arifahmedjoy/leantoken",
-	"version": "0.2.0",
+	"version": "0.1.0",
 	"description": "Zero-latency, zero-toggle AI token compression and optimization engine for coding agents",
 	"main": "src/index.js",
 	"bin": {
@@ -11,11 +11,15 @@
 		"src/",
 		"docs/usage.md",
 		"README.md",
-		"LICENSE"
+		"LICENSE",
+		"CHANGELOG.md"
 	],
 	"scripts": {
 		"test": "node test/runner.js",
-		"benchmark": "node test/benchmark.js"
+		"benchmark": "node test/benchmark.js",
+		"preversion": "npm test",
+		"version": "node scripts/changelog.js && git add CHANGELOG.md",
+		"prepublishOnly": "npm test && node scripts/changelog.js --check"
 	},
 	"keywords": [
 		"ai",

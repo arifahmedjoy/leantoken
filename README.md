@@ -61,25 +61,59 @@ leantoken/
 
 ## Getting started
 
-LeanToken requires Node.js 18 or later and has no external package dependencies.
-Run it from a checkout:
+LeanToken requires Node.js 18 or later and has no dependencies. It runs on
+Windows, macOS and Linux.
+
+**Install, then set up a project** (detects the AI tools you use):
 
 ```sh
-git clone https://github.com/arifahmedjoy/leantoken.git
-cd leantoken
-node bin/lean.js help
-node bin/lean.js prune git status
+npm install -g @arifahmedjoy/leantoken
+cd your-project
+lean init          # add --dry-run to preview first
+lean doctor        # confirms everything works
 ```
 
-See the [usage guide](docs/usage.md) for all current CLI commands, shell hooks,
-and notes about local runtime data.
+Without installing: `npx @arifahmedjoy/leantoken init`. This writes the
+instruction files, but skips the Claude Code auto-prune hook, because npx's
+temporary cache does not last.
+
+**Upgrade:** `npm install -g @arifahmedjoy/leantoken@latest`, then run
+`lean init` in your projects. Directives are upgraded in place.
+See [CHANGELOG.md](CHANGELOG.md) for what changed.
+
+**Uninstall:**
+
+```sh
+lean remove                 # this project only (--purge also deletes .lean/)
+lean uninstall              # every project LeanToken was set up in, plus user-level config
+npm rm -g @arifahmedjoy/leantoken
+```
+
+Every file is restored to its content before `init`, and files LeanToken
+created are deleted.
+
+See the [usage guide](docs/usage.md) for all commands, shell hooks, and local
+runtime data, and the [integration plan](docs/11-integration-plan.md) for
+which file each AI tool and editor reads.
 
 ## Development
 
 ```sh
+git clone https://github.com/arifahmedjoy/leantoken.git
+cd leantoken
+npm link           # puts `lean` on PATH from this checkout (undo: npm unlink -g)
 npm test
 npm run benchmark
 ```
+
+**Releasing** ([Semantic Versioning](https://semver.org)):
+
+1. Add entries under `## [Unreleased]` in [CHANGELOG.md](CHANGELOG.md) as you work.
+2. Run `npm version patch|minor|major`. This runs the tests, bumps
+   `package.json`, moves the Unreleased entries under the new version with
+   today's date, commits, and tags `vX.Y.Z`.
+3. Run `git push --follow-tags && npm publish`. Publishing is refused if the
+   version has no changelog entry.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution and verification
 guidance. The project is distributed under the [MIT License](LICENSE); security
