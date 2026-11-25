@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-26
+
 ### Added
 - `lean init` now auto-detects the AI tools a project and machine use, and configures only those. Supported: Claude Code, AGENTS.md readers (Codex, OpenCode, Copilot agent, Cursor, Zed, Antigravity, Gemini in Android Studio), Gemini CLI / Code Assist, GitHub Copilot (VS Code, Visual Studio, JetBrains IDEs including Android Studio), Cursor, Windsurf, Cline and JetBrains Junie. `--only=<hosts>` and `--all` override detection.
 - Claude Code auto-prune hook. It uses `PostToolUse` to prune noisy shell output (test runs, builds and installs, `git status`, `git diff`, directory listings) before the agent reads it. It does not change commands or permissions, and it runs only for commands that can produce noise.
@@ -46,5 +48,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `lean stats` and `lean statusline`: local token-savings telemetry.
 - Opt-in Bash and PowerShell shell hooks.
 
-[Unreleased]: https://github.com/arifahmedjoy/leantoken/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/arifahmedjoy/leantoken/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/arifahmedjoy/leantoken/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/arifahmedjoy/leantoken/releases/tag/v0.1.0
