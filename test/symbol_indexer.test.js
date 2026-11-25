@@ -14,6 +14,10 @@ function testJavaScriptExtraction() {
   assert(res.output.includes('method prune('), 'Should identify prune method');
   assert(res.savedPct >= 60, `Expected >=60% token savings, got ${res.savedPct}%`);
   console.log(`  ✓ Symbol extraction: ${res.symbolCount} signatures (${res.tokens} tokens vs ${res.fullTokens} full | -${res.savedPct}% saved)`);
+
+  const srcIndex = indexer.extract(path.join(__dirname, '../src/index.js'));
+  assert(srcIndex.output.includes('export CommandPruner'), 'Should identify CommonJS exports');
+  assert(srcIndex.output.includes('export Telemetry'), 'Should identify CommonJS exports');
 }
 
 function testMultiLanguageExtraction() {

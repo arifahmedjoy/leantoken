@@ -32,3 +32,25 @@
 ## 3. Deployment Readiness Assessment
 - **Overall Rating**: **B+** (Honest engineering: rock-solid core CLI, lightning-fast execution, zero bloat, awaiting wider shell shim coverage).
 - **Production Status**: **READY FOR LOCAL DEVELOPERS & DOGFOODING**.
+
+---
+
+# 2026-11-26 Real-Use Audit Addendum
+
+## Audit Execution
+- `npm test`: passed the complete 4-group suite.
+- `npm run benchmark`: 1,000 iterations passed; average 0.767 ms, P50 0.244 ms, P99 4.572 ms.
+- Direct CLI checks passed for `help`, `init --dry-run`, `init`, `prune git status`, `prune npm test`, `learn`, `stats`, `statusline`, `symbols src/core/pruner.js`, `symbols src/index.js`, and `--version`.
+- Missing prune arguments and missing symbol paths returned non-zero exit codes with direct error messages.
+- An unknown executable passed through `lean prune` preserved its raw output and exit status.
+
+## Real-Use Findings
+- Repository status pruning retained useful status and reported 41% estimated token savings at 0.77 ms.
+- Real test-suite pruning collapsed 27 output lines to a compact passing summary.
+- Telemetry correctly persisted total prune counts and savings under `.lean/stats.json`.
+- `lean init` was idempotent: a second run reported "already up to date".
+
+## Fixes Applied
+- CommonJS `module.exports` entries are now visible in JavaScript symbol outlines.
+- `lean symbols <missing-path>` now reports a concise error and exits 1 instead of printing an uncaught stack trace.
+- Added regression assertions for `src/index.js` CommonJS exports.

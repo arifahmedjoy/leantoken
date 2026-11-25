@@ -105,6 +105,16 @@ class SymbolIndexer {
       }
     }
 
+    const moduleExportsMatch = code.match(/module\.exports\s*=\s*\{([\s\S]*?)\};/);
+    if (moduleExportsMatch) {
+      for (const exportedLine of moduleExportsMatch[1].split('\n')) {
+        const exportMatch = exportedLine.trim().match(/^([A-Za-z_$][\w$]*)(?:\s*:\s*([A-Za-z_$][\w$]*))?,?\s*$/);
+        if (exportMatch) {
+          symbols.push(`  export ${exportMatch[2] || exportMatch[1]}`);
+        }
+      }
+    }
+
     return symbols;
   }
 

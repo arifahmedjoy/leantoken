@@ -92,10 +92,15 @@ switch (command) {
       console.error('Error: specify file or directory (e.g. lean symbols src/index.js)');
       process.exit(1);
     }
-    const indexer = new SymbolIndexer();
-    const res = indexer.extract(targetPath);
-    console.log(res.output);
-    console.log(`\n[LeanToken Symbols: ${res.symbolCount} signatures | ${res.tokens} tokens (saved ${res.savedPct}% vs full source)]`);
+    try {
+      const indexer = new SymbolIndexer();
+      const res = indexer.extract(targetPath);
+      console.log(res.output);
+      console.log(`\n[LeanToken Symbols: ${res.symbolCount} signatures | ${res.tokens} tokens (saved ${res.savedPct}% vs full source)]`);
+    } catch (err) {
+      console.error(`Error: ${err.message}`);
+      process.exit(1);
+    }
     break;
   }
 
