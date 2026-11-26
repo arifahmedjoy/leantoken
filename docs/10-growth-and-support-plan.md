@@ -1,3 +1,8 @@
+---
+title: "Growth and Support Plan"
+description: "LeanToken growth channels and operational support plans."
+---
+
 # LeanToken: Week 3+ Growth & Support Plan
 **Runbook**: Startup MVP Build (NEXUS-Sprint Mode)  
 **Teams**: Growth Team & Support Team  

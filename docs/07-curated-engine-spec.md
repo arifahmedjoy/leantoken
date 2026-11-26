@@ -1,3 +1,8 @@
+---
+title: "Curated Engine Specification"
+description: "LeanToken's curated golden-path architecture and product decisions."
+---
+
 # 07. The Curated Engine Specification: Eliminating Marketplace Chaos
 
 **Status**: Approved Architecture Decision  

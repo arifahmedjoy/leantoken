@@ -1,3 +1,8 @@
+---
+title: "Zero-Latency Architecture"
+description: "The technical design behind LeanToken's low-latency token optimization."
+---
+
 # 02. The Zero-Latency Token Architecture
 
 This document specifies the technical design of the **LeanToken Zero-Latency Architecture**.

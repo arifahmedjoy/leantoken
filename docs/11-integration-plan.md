@@ -1,3 +1,8 @@
+---
+title: "Integration Plan"
+description: "How LeanToken integrates with Claude Code, Codex, Gemini, Cursor, and other tools."
+---
+
 # LeanToken Integration Plan (v0.2)
 
 **Status date:** 2026-11-26

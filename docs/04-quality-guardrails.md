@@ -1,3 +1,8 @@
+---
+title: "Quality Guardrails"
+description: "Structural safeguards for deterministic tool-output compression."
+---
+
 # 04. Quality Guardrails: Compressing Without Hallucination
 
 ## 1. What Must NEVER Be Compressed

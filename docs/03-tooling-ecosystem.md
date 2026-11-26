@@ -1,3 +1,8 @@
+---
+title: "Tooling Ecosystem"
+description: "Comparison of token optimization tools and the LeanToken ecosystem."
+---
+
 # 03. Tooling Ecosystem & Comparison
 
 This document surveys existing open-source tools:

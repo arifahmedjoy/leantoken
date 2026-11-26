@@ -7,8 +7,35 @@
   "navigation": {
     "groups": [
       {
-        "group": "Guide",
-        "pages": ["index"]
+        "group": "Getting Started",
+        "pages": ["index", "usage"]
+      },
+      {
+        "group": "Architecture",
+        "pages": [
+          "01-token-compression-review-and-economics",
+          "02-zero-latency-architecture",
+          "09-system-architecture"
+        ]
+      },
+      {
+        "group": "Product",
+        "pages": [
+          "03-tooling-ecosystem",
+          "04-quality-guardrails",
+          "05-roadmap-and-experiments",
+          "06-ecosystem-enhancements",
+          "07-curated-engine-spec",
+          "08-cli-ux-spec"
+        ]
+      },
+      {
+        "group": "Operations",
+        "pages": [
+          "10-growth-and-support-plan",
+          "11-integration-plan",
+          "12-vscode-extension-plan"
+        ]
       }
     ]
   }

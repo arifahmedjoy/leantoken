@@ -1,3 +1,8 @@
+---
+title: "In-Flight Token Compression"
+description: "Economics and prompt-caching trade-offs for in-flight token compression."
+---
+
 # 01. In-Flight Token Compression: Economics & Prompt Caching
 
 This document summarizes one 16-day, 626M-token production benchmark of an in-flight token-compression tool used with Claude Code. The results illustrate potential performance and prompt-caching trade-offs for that tested configuration; they should not be generalized to all tools or workloads.

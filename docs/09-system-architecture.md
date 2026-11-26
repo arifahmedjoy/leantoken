@@ -1,3 +1,8 @@
+---
+title: "System Architecture"
+description: "LeanToken modules, data flow, and implementation boundaries."
+---
+
 # LeanToken System Architecture Specification
 **Author**: Backend Architect  
 **Audience**: Engine Developers, System Integrators  

@@ -1,3 +1,8 @@
+---
+title: "VS Code Extension Plan"
+description: "Planned LeanToken status and command integration for Visual Studio Code."
+---
+
 # LeanToken Status: VS Code extension plan
 
 **Status:** planned, not started (2026-11-26)

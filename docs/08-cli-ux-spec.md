@@ -1,3 +1,8 @@
+---
+title: "CLI UX Specification"
+description: "Command ergonomics and terminal UX requirements for LeanToken."
+---
+
 # LeanToken CLI Ergonomics & UX Specification
 **Author**: UX Architect  
 **Audience**: CLI Developers, End-Users, AI Coding Agents  

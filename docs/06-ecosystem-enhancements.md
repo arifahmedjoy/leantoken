@@ -1,3 +1,8 @@
+---
+title: "Ecosystem Enhancements"
+description: "Integration patterns and marketplace-style tooling considerations."
+---
+
 # 06. Ecosystem Enhancements & Marketplace Integration Considerations
 
 This document reviews marketplace-style agent tooling and integration considerations, then describes an alternative architectural stack for **LeanToken**. Observations from a particular setup or benchmark may not apply to other products or workloads.

@@ -1,3 +1,8 @@
+---
+title: "Roadmap and Experiments"
+description: "LeanToken implementation phases and empirical experiment plans."
+---
+
 # 05. Implementation Roadmap & Experiments
 
 ## Work Packages:
