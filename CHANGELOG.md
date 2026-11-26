@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.2] - 2026-11-26
+
 ### Added
 - `lean doctor --fix` runs each distinct `lean` fix command that doctor found (such as `lean init` or `lean init --global`), lists other fixes (such as `npm i -g`) for you to run, then runs doctor again.
 - `lean doctor --json` prints the checks as JSON (`success`, `summary`, `checks` with section, level, text and fix).
@@ -131,7 +133,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `lean stats` and `lean statusline`: local token-savings telemetry.
 - Opt-in Bash and PowerShell shell hooks.
 
-[Unreleased]: https://github.com/arifahmedjoy/leantoken/compare/v0.4.1...HEAD
+[Unreleased]: https://github.com/arifahmedjoy/leantoken/compare/v0.4.2...HEAD
+[0.4.2]: https://github.com/arifahmedjoy/leantoken/compare/v0.4.1...v0.4.2
 [0.4.1]: https://github.com/arifahmedjoy/leantoken/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/arifahmedjoy/leantoken/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/arifahmedjoy/leantoken/compare/v0.3.0...v0.3.1
