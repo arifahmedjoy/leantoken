@@ -1,3 +1,8 @@
+---
+title: "Usage"
+description: "Install and use LeanToken commands, hooks, audits, and local data."
+---
+
 # Using LeanToken
 
 LeanToken is a Node.js CLI with no external package dependencies. It requires
