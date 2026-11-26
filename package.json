@@ -1,6 +1,6 @@
 {
 	"name": "@arifahmedjoy/leantoken",
-	"version": "0.3.0",
+	"version": "0.3.1",
 	"description": "Token optimizer for AI coding agents: section maps instead of whole-file reads, pruned test/build/git output, and measured savings from real sessions",
 	"main": "src/index.js",
 	"bin": {
