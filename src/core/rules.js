@@ -66,7 +66,8 @@ const GITIGNORE_LINES = ['.lean/', '.claude/settings.local.json'];
 const ALIASES = {
   opencode: { key: 'agents', global: '.config/opencode/AGENTS.md' },
   codex: { key: 'agents', global: '.codex/AGENTS.md' },
-  antigravity: { key: 'gemini' }
+  antigravity: { key: 'gemini' },
+  vscode: { key: 'copilot' }
 };
 
 /** Expand --only names: returns host keys plus, per key, the global files to limit to (absent = all). */

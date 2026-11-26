@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `--only` accepts `vscode` as a name for GitHub Copilot. The CLI help lists the accepted aliases.
+
+### Fixed
+- `lean <command> --help` (for example `lean init --help`) ran the command instead of printing help. `lean prune` still passes `--help` to the command it runs.
+- `lean audit` told you to run `lean init` to get the v0.3 directive even when it was already installed. It now says the directive is in place and to re-audit after new sessions.
+
 ## [0.3.0] - 2026-11-26
 
 ### Added

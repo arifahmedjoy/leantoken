@@ -10,7 +10,8 @@ const fs = require('fs');
 const path = require('path');
 
 const args = process.argv.slice(2);
-const command = args[0];
+// `lean <cmd> --help` shows help instead of running <cmd>; prune and hook pass their arguments on untouched
+const command = !['prune', 'hook'].includes(args[0]) && (args.includes('--help') || args.includes('-h')) ? 'help' : args[0];
 
 function printHelp() {
   const { version } = require('../package.json');
@@ -25,6 +26,7 @@ Quick start (in your project):
 Setup:
   lean init [--only=<hosts>|--all] [--no-hooks] [--dry-run] [--global]
                              hosts: claude,agents,gemini,copilot,cursor,windsurf,cline,junie
+                             aliases: codex,opencode (agents), antigravity (gemini), vscode (copilot)
   lean remove [--only=<hosts>] [--purge] [--global]
                              Undo init in this project; --purge also deletes .lean/
   lean uninstall [--purge]   Undo init everywhere, then prints the command to remove the CLI

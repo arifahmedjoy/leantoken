@@ -9,6 +9,16 @@ const FOOTER = /\[LeanToken: -(\d+)% tokens \| full output: [^\]\n]+\]\s*$/;
 const BIG = 400; // the hook's MIN_RAW_CHARS
 const LARGE_READ = 8000; // a whole-file read above this many characters should have been a section read
 
+/** True when this project or the user-wide Claude Code file already carries the current directive. */
+function directiveCurrent(cwd) {
+  const fs = require('fs');
+  const os = require('os');
+  const { DIRECTIVE_VERSION } = require('./rules');
+  const mark = `Unified Agent Directive (v${DIRECTIVE_VERSION})`;
+  return [path.join(cwd, 'CLAUDE.md'), path.join(cwd, 'AGENTS.md'), path.join(os.homedir(), '.claude', 'CLAUDE.md')]
+    .some(f => { try { return fs.readFileSync(f, 'utf8').includes(mark); } catch { return false; } });
+}
+
 /**
  * Audit Claude Code sessions for one project, from the transcripts Claude Code keeps.
  * Everything is measured from the transcripts; token counts use the pruner's ~3.8 chars/token estimate.
@@ -123,7 +133,11 @@ function format(r, cwd = process.cwd()) {
   L('');
   L('  Next steps');
   const tips = [];
-  if (r.reads.wholeLarge) tips.push('Large whole-file reads: the directive (v0.3+) tells agents to outline first; run `lean init` to upgrade it.');
+  if (r.reads.wholeLarge) {
+    tips.push(directiveCurrent(cwd)
+      ? 'Large whole-file reads: the current directive (outline first, read one range) is installed; sessions before it still count. Re-run `lean audit` after a few new sessions.'
+      : 'Large whole-file reads: the directive (v0.3+) tells agents to outline first; run `lean init` to upgrade it.');
+  }
   if (hot.length) tips.push('Run `lean learn` to record hot files and their section maps in .lean/MEMORY.md.');
   const compound = r.skipped['compound command (pipes, ;, &&)'];
   if (compound && compound.tokens > r.shellTokens * 0.2) tips.push('Most shell output came from chained commands, which the hook never touches; most are file reads (see above).');

@@ -135,6 +135,18 @@ function testUserWideHookNotDuplicated() {
   console.log('  ✓ project init reuses a user-wide hook instead of installing a second one');
 }
 
+function testHelpNeverRunsCommand() {
+  const { execFileSync } = require('child_process');
+  const dir = tmp('lean-help-');
+  const out = execFileSync(process.execPath, [path.join(__dirname, '..', 'bin', 'lean.js'), 'init', '--help'], { cwd: dir, encoding: 'utf8' });
+  assert(out.includes('Quick start') && !out.includes('initialized'), out);
+  assert.deepStrictEqual(fs.readdirSync(dir), [], '`init --help` wrote nothing');
+  const { CognitiveShaper } = require('../src/core/rules');
+  const res = new CognitiveShaper().init({ dryRun: true, only: ['vscode'], hooks: false });
+  assert(res.success && /copilot/.test(res.message), res.message);
+  console.log('  ✓ `<command> --help` prints help without running; vscode is an alias of copilot');
+}
+
 module.exports = {
   run() {
     console.log('Testing Telemetry, Outline, Audit & Learn:');
@@ -143,5 +155,6 @@ module.exports = {
     testMarkdownOutline();
     testAuditAndLearn();
     testUserWideHookNotDuplicated();
+    testHelpNeverRunsCommand();
   }
 };
