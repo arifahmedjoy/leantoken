@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-11-26
+
 ### Added
 - Read guard (Claude Code `PreToolUse` hook on `Read`). A whole-file Read of a code or Markdown file of 20 KB–4 MB gets the file's outline once, with each section's line range, instead of the file. Reading the same file whole again within 30 minutes is allowed, so edits (which need a full read) still work. A file read whole again twice after being guarded is never guarded again in that project. Guard state is kept in LeanToken's user config folder, not in the repository. Replayed on this machine's real sessions: 59 whole-file reads of large code/Markdown files, outlines of 13.4k tokens instead of 530.6k (2.5%). 25 of those 59 files were edited later in the same session; for those the guard costs the outline and one extra call. Measured cost: ~100–126 ms per Read, of which ~96 ms is Node.js start-up (`npm run benchmark`).
 - Automatic learning: a Claude Code `SessionStart` hook refreshes `.lean/MEMORY.md` in the background when newer sessions exist and the map is over an hour old. It runs only in projects that have `.lean/`, and prints nothing, so it adds no context.
@@ -111,7 +113,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `lean stats` and `lean statusline`: local token-savings telemetry.
 - Opt-in Bash and PowerShell shell hooks.
 
-[Unreleased]: https://github.com/arifahmedjoy/leantoken/compare/v0.3.1...HEAD
+[Unreleased]: https://github.com/arifahmedjoy/leantoken/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/arifahmedjoy/leantoken/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/arifahmedjoy/leantoken/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/arifahmedjoy/leantoken/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/arifahmedjoy/leantoken/compare/v0.2.0...v0.2.1
