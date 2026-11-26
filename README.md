@@ -6,7 +6,9 @@ This `website` branch contains only the marketing site. The LeanToken CLI lives 
 the [`main`](https://github.com/arifahmedjoy/leantoken/tree/main) branch and is
 published as [`@arifahmedjoy/leantoken` on npm](https://www.npmjs.com/package/@arifahmedjoy/leantoken).
 Install it with `npm install -g @arifahmedjoy/leantoken`. Report CLI bugs and
-feature requests on the main branch, not here.
+feature requests on the main branch, not here. User documentation is at
+[docs.leantoken.dev](https://docs.leantoken.dev/), and the project is listed on
+[Context7](https://context7.com/arifahmedjoy/leantoken).
 
 ## Stack
 
@@ -45,6 +47,8 @@ When you change the page, keep these in sync:
 - `<title>`, meta description, Open Graph and Twitter tags in `src/pages/index.astro`
 - JSON-LD `softwareVersion` and the displayed version, matched to the latest CLI release on npm
 - Product claims, commands, setup steps, and supported integrations, checked against the main branch README and `docs/usage.md`
+- Documentation links should point to [docs.leantoken.dev](https://docs.leantoken.dev/)
+- Link to the [LeanToken Context7 library](https://context7.com/arifahmedjoy/leantoken) when mentioning its Context7 listing
 - The Context7 widget script and its library identifier in `src/pages/index.astro`; keep any privacy copy clear that it is separate from the local CLI
 - `public/sitemap.xml` when you add or remove pages
 - `public/assets/og-image.png`, regenerated from `og-image.svg` (1200×630) when you change the social card
