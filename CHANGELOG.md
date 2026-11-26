@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-11-26
+
 ### Fixed
 - macOS: the symlink check on `.lean` writes no longer rejects links at or above the project folder (macOS `/var` → `/private/var`, a project opened through a link). `lean learn` failed in macOS CI for this reason.
 
@@ -116,7 +118,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `lean stats` and `lean statusline`: local token-savings telemetry.
 - Opt-in Bash and PowerShell shell hooks.
 
-[Unreleased]: https://github.com/arifahmedjoy/leantoken/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/arifahmedjoy/leantoken/compare/v0.4.1...HEAD
+[0.4.1]: https://github.com/arifahmedjoy/leantoken/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/arifahmedjoy/leantoken/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/arifahmedjoy/leantoken/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/arifahmedjoy/leantoken/compare/v0.2.1...v0.3.0
