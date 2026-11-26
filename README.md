@@ -1,6 +1,7 @@
-# LeanToken (Zero-Latency Token Optimization Engine)
+# LeanToken (Token Optimization for AI Coding Agents)
 
 [![CI](https://github.com/arifahmedjoy/leantoken/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/arifahmedjoy/leantoken/actions/workflows/ci.yml)
+[![Release](https://github.com/arifahmedjoy/leantoken/actions/workflows/release.yml/badge.svg?branch=main)](https://github.com/arifahmedjoy/leantoken/actions/workflows/release.yml)
 [![npm](https://img.shields.io/npm/v/@arifahmedjoy/leantoken)](https://www.npmjs.com/package/@arifahmedjoy/leantoken)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Node.js 18+](https://img.shields.io/badge/Node.js-18%2B-339933)](https://nodejs.org/)
@@ -22,11 +23,21 @@ Traditional token-compression tools may act as in-flight HTTP proxies. They inte
 ### The LeanToken Strategy
 Instead of paying a 2-second latency penalty to squeeze 1% out of uncached inputs, **LeanToken** attacks token waste at the source across four pillars:
 
-1. **Upstream Navigation (Serena / AST / Symbol Maps)**: Prevent 70%-90% of file dumps by retrieving symbols, not files.
-2. **Sub-Millisecond Tool Pruning (Deterministic MCP / Shell Hooks / RTK)**: Strip JSON noise, test stack traces, and verbose build logs in <5ms.
-3. **Output Token Slashing (Caveman / Chisle Mode)**: Enforce dense, telegraphic outputs; cuts 30%-50% expensive output tokens.
-4. **Code Churn Discipline (Ponytail / YAGNI Ladder)**: Minimum viable diffs prevent conversational context bloat over turns.
-5. **Out-of-Band Session Learner (lean-learn)**: Asynchronous transcript scraper that catches repo footguns with 0ms in-flight latency.
+1. **Read less (section maps and symbols)**: `lean symbols <file>` gives signatures for code and, for Markdown, every section's line range and size, so agents read one section instead of the whole file. The directive tells agents to do this for files over ~300 lines.
+2. **Deterministic tool-output pruning (Claude Code hook / `lean prune`)**: folds noise from test runs, builds and installs, `git status`, `git diff` and listings. The raw output is always kept in `.lean/logs/`.
+3. **Dense replies**: the directive asks for telegraphic answers without preamble (output-token effect not yet measured).
+4. **Code churn discipline**: minimum viable diffs prevent context bloat over turns.
+5. **Out-of-band learning and measurement**: `lean learn` maps the files agents keep re-reading into `.lean/MEMORY.md`, and `lean audit` measures what happened in real sessions. Both run outside agent turns.
+
+### Measured results
+
+From `lean audit` on a real project (8 Claude Code sessions, Nov 2026, LeanToken 0.2.1):
+
+- **Shell output: ~100k tokens. Hook pruning saved ~300 (0.3%).** 92% of it came from chained `cd … && cat … && grep …` reads of documentation: content, not noise. Pruning it would make agents re-read.
+- **Whole-file reads of large docs: ~39k tokens.** One 50 KB spec was read 61 times (up to 24 times in one session). Its `lean symbols` map is 738 tokens instead of ~13.6k.
+- **Hook cost**: ~25 ms per call on top of Node.js start-up (~130–200 ms on the test machines), and only for commands the pruner can shrink (`npm run benchmark`).
+
+So 0.3 targets reads first. Run `lean audit` in your own project to see where your tokens go.
 
 ---
 
@@ -44,7 +55,9 @@ leantoken/
     ├── 03-tooling-ecosystem.md            # Serena, Caveman, Ponytail, and MCPs
     ├── 04-quality-guardrails.md           # How to prune tokens without losing intelligence
     ├── 05-roadmap-and-experiments.md      # Actionable milestones and proof-of-concept plans
-    └── 06-ecosystem-enhancements.md       # Marketplace tooling and enhanced stack
+    ├── 06-ecosystem-enhancements.md       # Marketplace tooling and enhanced stack
+    ├── 09-system-architecture.md          # Modules and data flow
+    └── usage.md                           # Every command and option
 ```
 
 ---
@@ -53,12 +66,12 @@ leantoken/
 
 | Feature                    | Traditional In-Flight Proxy              | LeanToken Approach                             |
 | :------------------------- | :--------------------------------------- | :--------------------------------------------- |
-| **Turn Latency**           | +1,100ms - 2,900ms                       | **< 5ms** (Zero perceptual latency)            |
-| **Prefix Cache Integrity** | May constrain prefix mutation            | **100% Guaranteed** (Zero prefix mutation)     |
-| **Output Token Reduction** | Varies by tool and workflow              | **30% - 50% Reduction** (Caveman/Chisle)       |
-| **File Dump Waste**        | Compresses bloated files after the read  | **Prevents read** via symbol indexing (Serena) |
-| **Cost**                   | Commercial / Subscription                | **100% Free & Open Source**                    |
-| **Code Quality Impact**    | Risk of hallucination on compressed code | **Zero degradation** (AST-sound, exact diffs)  |
+| **Turn Latency**           | +1,100ms - 2,900ms                       | None per turn; ~25 ms + Node.js start-up per prunable shell call |
+| **Prefix Cache Integrity** | May constrain prefix mutation            | Never rewrites history; the directive is static |
+| **Output Token Reduction** | Varies by tool and workflow              | Directive asks for dense replies (not yet measured) |
+| **File Dump Waste**        | Compresses bloated files after the read  | **Avoids the read**: section maps and signatures |
+| **Cost**                   | Commercial / Subscription                | **Free & open source (MIT)**                     |
+| **Code Quality Impact**    | Risk of hallucination on compressed code | File content is never pruned; every pruned output keeps its raw log |
 
 ## Getting started
 
@@ -72,6 +85,15 @@ npm install -g @arifahmedjoy/leantoken
 cd your-project
 lean init          # add --dry-run to preview first
 lean doctor        # confirms everything works
+```
+
+**Daily use:**
+
+```sh
+lean symbols docs/spec.md   # section map with line ranges; read only what you need
+lean audit                  # where this project's tokens went in real sessions
+lean learn                  # write maps of the most-read files to .lean/MEMORY.md
+lean stats                  # what the hook has pruned so far
 ```
 
 Without installing: `npx @arifahmedjoy/leantoken init`. This writes the
@@ -113,8 +135,19 @@ npm run benchmark
 2. Run `npm version patch|minor|major`. This runs the tests, bumps
    `package.json`, moves the Unreleased entries under the new version with
    today's date, commits, and tags `vX.Y.Z`.
-3. Run `git push --follow-tags && npm publish`. Publishing is refused if the
-   version has no changelog entry.
+3. Run `git push --follow-tags`. The **Release to npm** workflow
+   ([release.yml](.github/workflows/release.yml)) publishes every version on
+   `main` that is not on npm yet, with provenance. It tags `vX.Y.Z` if needed
+   and creates the GitHub Release from the changelog entry. It refuses a
+   version without a changelog entry. Do not run `npm publish` by hand.
+
+   One-time setup: on npmjs.com, add this repository and `release.yml` as a
+   trusted publisher for the package, or save an npm automation token as the
+   repository secret `NPM_TOKEN`.
+
+Every pull request that changes `src/` or `bin/` must add a `CHANGELOG.md`
+entry (CI checks this) and update `ROADMAP.md` and the docs when status or
+behavior changes.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution and verification
 guidance. The project is distributed under the [MIT License](LICENSE); security

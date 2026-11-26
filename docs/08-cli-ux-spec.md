@@ -63,30 +63,42 @@ FILE: src/core/pruner.js (Language: JavaScript)
 ```
 
 ### 2.4 `lean learn`
-Out-of-band session transcript analyzer. Runs after coding sessions to update `MEMORY.md`.
+Real output (aricon, 8 sessions). Out-of-band analyzer of the project's Claude Code sessions. Writes `.lean/MEMORY.md` (hot files with section maps, failing commands).
 ```bash
 $ lean learn
-⚡ Analyzing last session transcripts...
-  ✓ Analyzed: 42 agent turns
-  ✓ Pattern detected: "src/config/schema.json" read 6x -> Added to hot-context cache
-  ✓ Quirk captured: "pwsh heredocs failed on quotes" -> Appended to .lean/MEMORY.md
-  ✓ Zero tokens burned during coding session
+⚡ LeanToken Learn: scanned 8 session(s)
+  ✓ Hot files recorded: 10
+  ✓ Failed commands recorded: 0
+  ✓ Saved to: .lean/MEMORY.md
+```
+
+### 2.4b `lean audit`
+Measures real sessions: model tokens, shell output pruned and skipped (with reasons), file reads, re-reads, large whole-file reads, most-read files. Options: `--sessions=N`, `--json`.
+```bash
+$ lean audit
+  Shell output
+    total:   ~100,117 tokens
+    pruned:  3 outputs, ~311 tokens saved (0.3% of shell output)
+    not pruned:
+        83 × ~ 92,184 tok  compound command (pipes, ;, &&)
+  File reads (the largest lever: content is never pruned, only read less)
+    whole-file reads over 8k chars: 7 (~39,176 tokens): use `lean symbols <file>`, then read one range
 ```
 
 ### 2.5 `lean stats`
-Displays token savings and latency telemetry.
+Displays this project's measured pruning counters (no estimated figures). Real output from the first audited project; counters recorded from 0.3 on also show a per-output-type breakdown.
 ```bash
 $ lean stats
-══════════════════════════════════════════════════════
-  LeanToken Telemetry (Lifetime)
-══════════════════════════════════════════════════════
-  Command Prunes:       418 executions
-  Raw Input Tokens:     842,120
-  Pruned Input Tokens:  168,424 (Saved: 673,696 | -80.0%)
-  Output Shaper Bonus:  ~42% fewer agent output tokens
-  Average Latency:      1.82 ms (illustrative proxy benchmark: 1,840 ms)
-  Prompt Cache Breaks:  0 (100% prefix preservation)
-══════════════════════════════════════════════════════
+════════════════════════════════════════════════════════════
+  LeanToken pruning stats (this project, measured)
+════════════════════════════════════════════════════════════
+  Outputs pruned:          1
+  Tokens before pruning:   121
+  Tokens sent to agent:    52
+  Tokens saved:            69 (-57%)
+  Pruning time (avg):      10.73 ms (excludes Node.js start-up per hook call)
+════════════════════════════════════════════════════════════
+  Whole-session picture (reads, skipped outputs, tokens): lean audit
 ```
 
 ---

@@ -24,6 +24,8 @@ Build **LeanToken**: an open-source, zero-latency optimization suite that saves 
 
 ## 2. Goals & Success Metrics
 
+> **Measured status (Nov 2026, `lean audit` / `npm run benchmark`)**: hook latency is ~25 ms on top of Node.js start-up per prunable shell call, with none per turn. Hook pruning saved 0.3% of shell output on a docs-heavy project, because most output was file content. The file-dump target is now addressed by section maps and directive v0.3. Output-token reduction and task quality are not measured yet. See [ROADMAP.md](ROADMAP.md).
+
 | Goal | Primary Metric | Baseline (In-Flight Proxy / Raw Agent) | Target (LeanToken v0.1) | Measurement Window |
 | :--- | :--- | :--- | :--- | :--- |
 | **Zero Perceptual Latency** | Pre-upstream turn latency overhead | 1,100ms - 2,900ms (proxy benchmark) | **< 5ms** (Deterministic Pruner) | Continuous / every request |

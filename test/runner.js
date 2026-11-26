@@ -7,9 +7,10 @@ const symbolTest = require('./symbol_indexer.test');
 const learnerTest = require('./learner.test');
 const hooksTest = require('./hooks.test');
 const lifecycleTest = require('./lifecycle.test');
+const auditTest = require('./audit.test');
 
 console.log('════════════════════════════════════════════════════════════');
-console.log('  Running LeanToken Automated Test Suite (v0.2)');
+console.log(`  Running LeanToken Automated Test Suite (v${require('../package.json').version})`);
 console.log('════════════════════════════════════════════════════════════\n');
 
 try {
@@ -24,6 +25,8 @@ try {
   hooksTest.run();
   console.log('');
   lifecycleTest.run();
+  console.log('');
+  auditTest.run();
   console.log('');
   console.log('════════════════════════════════════════════════════════════');
   console.log('  ✓ ALL UNIT & REGRESSION TESTS PASSED (100% SUCCESS)');

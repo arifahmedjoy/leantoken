@@ -50,6 +50,8 @@ class SymbolIndexer {
       symbols = this.extractJavaLikeSymbols(content);
     } else if (['.json'].includes(ext)) {
       symbols = this.extractJsonSchema(content);
+    } else if (['.md', '.mdx', '.markdown'].includes(ext)) {
+      symbols = this.extractMarkdownOutline(content);
     } else {
       symbols = this.extractGenericSymbols(content);
     }
@@ -305,6 +307,36 @@ class SymbolIndexer {
     }
   }
 
+  /**
+   * Heading tree with the line range and size of each section, so an agent can read
+   * one section (e.g. `sed -n 120,180p` or Read offset/limit) instead of the whole file.
+   * Long documents keep levels 1-3 only.
+   */
+  extractMarkdownOutline(text) {
+    const lines = text.split('\n');
+    const heads = [];
+    let fence = null;
+    lines.forEach((line, i) => {
+      const f = /^\s*(```|~~~)/.exec(line);
+      if (f) { fence = fence ? (line.trim().startsWith(fence) ? null : fence) : f[1]; return; }
+      if (fence) return;
+      const m = /^(#{1,6})\s+(.+?)\s*#*\s*$/.exec(line);
+      if (m) heads.push({ level: m[1].length, title: m[2], start: i + 1 });
+    });
+    if (!heads.length) return [`  L1-${lines.length} (no headings, ~${this.estimateTokens(text)} tok)`];
+    const maxLevel = heads.length > 60 ? 3 : 6;
+    const out = [];
+    heads.forEach((h, idx) => {
+      if (h.level > maxLevel) return;
+      const next = heads.slice(idx + 1).find(n => n.level <= h.level);
+      const end = next ? next.start - 1 : lines.length;
+      const tok = this.estimateTokens(lines.slice(h.start - 1, end).join('\n'));
+      const size = tok >= 1000 ? `${(tok / 1000).toFixed(1)}k` : String(tok);
+      out.push(`${'  '.repeat(h.level)}L${h.start}-${end} ${'#'.repeat(h.level)} ${h.title} (~${size} tok)`);
+    });
+    return out;
+  }
+
   extractGenericSymbols(code) {
     return code
       .split('\n')
@@ -317,6 +349,7 @@ class SymbolIndexer {
     const entries = fs.readdirSync(dirPath, { withFileTypes: true });
     const summaries = [];
     let totalTokens = 0;
+    let totalFull = 0;
     let totalSymbols = 0;
 
     for (const entry of entries) {
@@ -327,6 +360,7 @@ class SymbolIndexer {
           const res = this.extract(full);
           summaries.push(res.output);
           totalTokens += res.tokens;
+          totalFull += res.fullTokens;
           totalSymbols += res.symbolCount;
         } catch {
           // ignore individual read errors
@@ -339,7 +373,8 @@ class SymbolIndexer {
       symbolCount: totalSymbols,
       output: summaries.join('\n\n'),
       tokens: totalTokens,
-      savedPct: 85
+      fullTokens: totalFull,
+      savedPct: totalFull > 0 ? Math.max(0, Math.round(((totalFull - totalTokens) / totalFull) * 100)) : 0
     };
   }
 }

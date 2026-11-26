@@ -1,7 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const { CommandPruner } = require('./pruner');
-const { Telemetry } = require('./telemetry');
+// pruner and telemetry are loaded only when an output is big enough to prune (hook start-up time)
 
 // Routes that only drop noise. generic/json/git-log are excluded: in automatic mode the
 // agent often asked for that output verbatim (file reads, JSON data, `git log -p`).
@@ -11,15 +10,22 @@ const MIN_SAVED_TOKENS = 20;
 const RAW_READS_TO_BACK_OFF = 2; // agent opened the raw log this often -> stop pruning that command
 const LOG_RE = /\.lean[\/\\]logs[\/\\]\d+-([a-z0-9-]+)\.log/;
 
+// Leading steps that print nothing, so the output still belongs to the one command after them:
+// cd/pushd/Set-Location, `export X=..`, `$env:X = ..`, `mkdir [-p] dir`, `source <venv>/activate`.
+// An argument with no command substitution ($(...) or backticks): those would print output of their own
+const ARG = `(?:"[^"$\`]*"|'[^']*'|(?:[^\\s;&|$\`"']|\\$(?!\\())+)`;
+const SETUP_PREFIX = new RegExp(
+  `^(?:(?:cd|pushd|Set-Location|sl)\\s+${ARG}|export\\s+\\w+=${ARG}?|\\$env:\\w+\\s*=\\s*${ARG}` +
+  `|mkdir\\s+(?:-p\\s+)?${ARG}|(?:source|\\.)\\s+[^\\s;&|]*activate[^\\s;&|]*)\\s*(?:&&|;)\\s*`, 'i');
+
 /**
  * Reduce a shell command to one simple command, or return null when it is compound.
- * Leading `cd <dir> &&` and a trailing `2>&1` are allowed; pipes, `;`, `&&`, `||`,
- * newlines and substitutions are not, because the output then mixes several commands.
+ * Leading setup steps (see SETUP_PREFIX) and a trailing `2>&1` are allowed; pipes, `;`,
+ * `&&`, `||`, newlines and substitutions are not, because the output then mixes several commands.
  */
 function normalizeCommand(command) {
   let cmd = (command || '').trim();
-  const cdPrefix = /^(cd|Set-Location|sl)\s+("[^"]*"|'[^']*'|\S+)\s*(&&|;)\s*/i;
-  while (cdPrefix.test(cmd)) cmd = cmd.replace(cdPrefix, '');
+  while (SETUP_PREFIX.test(cmd)) cmd = cmd.replace(SETUP_PREFIX, '');
   cmd = cmd.replace(/\s*2>&1\s*$/, '');
   if (!cmd || /&&|\|\||[;|\n`]|\$\(/.test(cmd)) return null;
   if (/(^|[\s\/\\])lean(\.js)?(\s|"|$)/.test(cmd)) return null; // already pruned explicitly
@@ -76,6 +82,8 @@ function claudePostToolUse(payload, options = {}) {
     const cmd = normalizeCommand(input.command);
     if (!cmd) return null;
 
+    const { CommandPruner } = require('./pruner');
+    const { Telemetry } = require('./telemetry');
     const pruner = new CommandPruner({ logDir: path.join(cwd, '.lean', 'logs') });
     if (!AUTO_ROUTES.has(pruner.route(cmd, res.stdout))) return null;
     const learned = loadLearned(cwd).rawReads || {};
@@ -85,7 +93,7 @@ function claudePostToolUse(payload, options = {}) {
     if (r.savedTokens < MIN_SAVED_TOKENS || !r.spoolPath) return null;
 
     try {
-      Telemetry.recordPrune({ command: cmd, rawTokens: r.rawTokens, prunedTokens: r.prunedTokens, savedTokens: r.savedTokens, latencyMs: r.pruneDurationMs });
+      Telemetry.recordPrune({ route: r.route, rawTokens: r.rawTokens, prunedTokens: r.prunedTokens, savedTokens: r.savedTokens, latencyMs: r.pruneDurationMs, cwd });
     } catch {
       // telemetry is best-effort
     }

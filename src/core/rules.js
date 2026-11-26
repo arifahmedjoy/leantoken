@@ -12,7 +12,7 @@ const LEAN_JS = fwd(path.resolve(__dirname, '..', '..', 'bin', 'lean.js'));
 const HOOK_MARK = 'hook claude';
 // Version of the directive text, not of the package: bump only when the text changes,
 // so a package release does not rewrite instruction files in every repo.
-const DIRECTIVE_VERSION = '0.2.0';
+const DIRECTIVE_VERSION = '0.3.0';
 
 /**
  * Instruction files per AI host. One host may serve several editors:
@@ -85,10 +85,15 @@ function expandOnly(names) {
   return { keys, pick, unknown };
 }
 
-// Claude Code runs the hook only for commands that can produce prunable noise (no Node start for cat/grep/sed)
+// Claude Code runs the hook only for commands whose output the pruner can shrink (no Node start-up for
+// cat/grep/sed, `git log`, `python script.py`, ...). Claude Code checks each subcommand of a chained
+// command, and `x *` also matches bare `x`. Keep in sync with the pruner's routes (pruner.js).
 const HOOK_PREFIXES = {
-  Bash: ['git', 'ls', 'tree', 'npm', 'pnpm', 'yarn', 'bun', 'npx', 'pytest', 'python', 'python3', 'go', 'cargo', 'dotnet', 'gradle', 'gradlew', './gradlew', 'mvn', './mvnw', 'make', 'tsc', 'pip', 'pip3', 'uv', 'docker'],
-  PowerShell: ['git', 'ls', 'dir', 'npm', 'pnpm', 'yarn', 'npx', 'pytest', 'python', 'py', 'go', 'cargo', 'dotnet', 'gradle', './gradlew', '.\\gradlew', 'mvn', 'pip', 'docker']
+  Bash: ['git status', 'git diff', 'ls', 'tree', 'npm', 'pnpm', 'yarn', 'bun', 'npx', 'bunx', 'pytest', 'vitest', 'jest', 'phpunit', 'rspec',
+    'python -m', 'python3 -m', 'go test', 'go build', 'cargo', 'dotnet', 'gradle', 'gradlew', './gradlew', 'mvn', './mvnw', 'make', 'cmake',
+    'tsc', 'pip', 'pip3', 'uv', 'docker build', 'docker compose', 'composer', 'bundle', 'deno test', 'mix test', 'swift build'],
+  PowerShell: ['git status', 'git diff', 'ls', 'dir', 'tree', 'npm', 'pnpm', 'yarn', 'npx', 'pytest', 'python -m', 'py -m', 'go test', 'go build',
+    'cargo', 'dotnet', 'gradle', './gradlew', '.\\gradlew', 'mvn', 'pip', 'uv', 'docker build', 'docker compose']
 };
 
 /**
@@ -103,27 +108,29 @@ class CognitiveShaper {
 
   buildRules(hooked) {
     const shell = hooked
-      ? `- A LeanToken hook already prunes noisy output (tests, builds, \`git status\`/\`git diff\`, listings). Do not wrap commands in \`lean prune\` yourself.`
+      ? `- A LeanToken hook already prunes noisy output (tests, builds, \`git status\`/\`git diff\`, listings); do not add \`lean prune\`.`
       : `- Run noisy commands through LeanToken: \`lean prune <command>\` (test runners, builds, installs, \`git status\`, \`git diff\`, recursive listings). Run commands directly when you need their output verbatim.`;
     return `
 ${START}
 # LeanToken Unified Agent Directive (v${DIRECTIVE_VERSION})
-## 1. Surgical Minimal Diffs (YAGNI)
-- Make ONLY the minimum edits required to satisfy the request.
-- Never add unsolicited dependencies, architectural rewrites, or speculative abstractions.
-- Preserve existing coding conventions, variable names, and formatting.
+## 1. Minimal Diffs (YAGNI)
+- Make only the edits the request needs: no unrequested dependencies, rewrites or abstractions.
+- Keep existing conventions, names and formatting.
 
-## 2. High-Density Telegraphic Responses
-- Reply in concise, high-signal language.
-- Omit conversational preamble ("Sure!", "I have fixed...", "Here is the summary").
-- Format answers as: (1) Root Cause, (2) Action Taken, (3) Exact Verification.
+## 2. Dense Replies
+- Concise, high-signal language; no preamble or recap.
+- Answer as: (1) Root Cause, (2) Action Taken, (3) Verification.
 
-## 3. Evidence-Based Grounding
-- Quote exact line numbers and identifiers from files read.
-- Never assume a file exists or an API signature is valid without checking.
-- If unsure, inspect the code or test first.
+## 3. Grounding
+- Cite the exact files, lines and identifiers you read.
+- Never assume a file or API exists; check the code or tests first.
 
-## 4. Shell Output Discipline
+## 4. Reads (the largest token cost)
+- File over ~300 lines: run \`lean symbols <file>\` first (Markdown: headings with line ranges; code: signatures), then read only the range you need.
+- Use the file maps in \`.lean/MEMORY.md\` when it exists. Do not re-read unchanged files already in context.
+- Keep search output small: specific patterns, \`grep -l\`, \`head\`.
+
+## 5. Shell Output
 ${shell}
 - If pruned output is not enough, read the raw log named in its \`[LeanToken: ...]\` footer.
 ${END}
@@ -244,6 +251,27 @@ ${END}
     return JSON.parse(fs.readFileSync(settingsPath, 'utf8') || '{}'); // throws on invalid JSON: never overwrite it
   }
 
+  hasClaudeHook(settingsPath) {
+    try {
+      const list = (this.readSettings(settingsPath).hooks || {}).PostToolUse || [];
+      return list.some(g => (g.hooks || []).some(h => this.isOurHook(h)));
+    } catch {
+      return false;
+    }
+  }
+
+  /** True when the installed hook has this version's command filters (paths are checked separately). */
+  claudeHookCurrent(settingsPath) {
+    const filters = groups => groups.map(g => `${g.matcher}:${(g.hooks || []).filter(h => this.isOurHook(h)).map(h => h.if).join(',')}`).join('|');
+    try {
+      const list = (this.readSettings(settingsPath).hooks || {}).PostToolUse || [];
+      const ours = list.filter(g => (g.hooks || []).some(h => this.isOurHook(h)));
+      return filters(ours) === filters(this.hookGroups());
+    } catch {
+      return false;
+    }
+  }
+
   /** Merge the PostToolUse prune hook into a Claude Code settings file. Returns 'added' | 'updated' | 'unchanged' | 'error'. */
   installClaudeHook(settingsPath) {
     let settings;
@@ -358,12 +386,17 @@ ${END}
       return { success: true, modified: [], message: `[Dry Run] Would configure:\n${lines.join('\n')}\n\nContent:\n${this.buildRules(false)}` };
     }
 
-    // Hook first: the Claude directive text depends on whether pruning is automatic
+    // Hook first: the Claude directive text depends on whether pruning is automatic.
+    // A user-wide hook already covers this project: a second, project-level copy would run every prune twice.
     let hookStatus = 'skipped';
-    if (wantsHook) {
+    const globalSettings = path.join(home, '.claude', 'settings.json');
+    if (wantsHook && !isGlobal && this.hasClaudeHook(globalSettings)) {
+      hookStatus = 'user-wide';
+      try { this.removeClaudeHook(settingsPath); } catch { /* leave an unreadable local file alone */ }
+    } else if (wantsHook) {
       try { hookStatus = this.installClaudeHook(settingsPath); } catch { hookStatus = 'error'; }
     }
-    const hooked = ['added', 'updated', 'unchanged'].includes(hookStatus);
+    const hooked = ['added', 'updated', 'unchanged', 'user-wide'].includes(hookStatus);
 
     const modified = [];
     const failed = [];
@@ -399,7 +432,9 @@ ${END}
       '⚡ LeanToken initialized successfully!',
       `  ✓ Hosts: ${Object.entries(chosen).map(([k, why]) => `${k} (${why})`).join(', ')}`,
       `  ✓ Directive written/upgraded: ${modified.join(', ') || 'already up to date'}`,
-      wantsHook ? `  ${hooked ? '✓' : '✗'} Claude Code auto-prune hook (${rel(settingsPath)}): ${hookStatus}` : '  - Claude Code hook: skipped'
+      !wantsHook ? '  - Claude Code hook: skipped'
+        : hookStatus === 'user-wide' ? `  ✓ Claude Code auto-prune hook: installed user-wide (~/.claude/settings.json)${this.claudeHookCurrent(globalSettings) ? '' : '; outdated, run: lean init --global'}`
+          : `  ${hooked ? '✓' : '✗'} Claude Code auto-prune hook (${rel(settingsPath)}): ${hookStatus}`
     ];
     if (ephemeral && chosen.claude && options.hooks !== false) {
       out.push('  ! Run via npx, so no auto-prune hook was installed. For the hook: npm i -g @arifahmedjoy/leantoken && lean init');

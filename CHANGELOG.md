@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `lean audit [--sessions=N] [--json]`: measures a project's real Claude Code sessions (read from `~/.claude/projects/<project>/`). It reports model tokens, shell output pruned and skipped (with the reason for each), file reads, identical re-reads, large whole-file reads and the most-read files. On the first project audited (8 sessions), pruning saved 0.3% of shell output, while whole-file reads of large docs cost ~39k tokens. That finding drives the rest of this release.
+- `lean symbols` / `lean outline` on Markdown: a heading tree with each section's line range and size (e.g. `L40-128 ## 4. Architecture (~2.8k tok)`), so agents read one section instead of the file. On a 50 KB spec: 738 tokens instead of 13.6k.
+- Directive v0.3.0, section "Reads": outline files over ~300 lines first and read only the needed range, use `.lean/MEMORY.md` maps, don't re-read unchanged files, and keep search output small. The directive stays under its 350-token budget.
+- `.github/workflows/release.yml`: every `package.json` version on `main` that is not on npm yet is published (with provenance), tagged `vX.Y.Z` and given a GitHub Release with its changelog entry. Supports npm trusted publishing or an `NPM_TOKEN` secret.
+- CI fails pull requests that change `src/` or `bin/` without a `CHANGELOG.md` entry.
+- `lean doctor` warns when the hook is installed both user-wide and in the project, and when its command filters are from an older version.
+
+### Changed
+- `lean learn` now reads Claude Code's real session files. It records in `.lean/MEMORY.md` the 10 files read most (3+ times), with a section map or signatures for files of 150+ lines, and the commands that failed 2+ times with their first error line. On the first audited project this is 5.5 KB, mapping a spec that costs 13.6k tokens to read whole. Before, it looked for `.claude/history.jsonl` in the project, which Claude Code never writes, so it found nothing.
+- The hook now also prunes commands preceded by steps that print nothing: `cd`, `pushd`, `export X=..`, `$env:X = ..`, `mkdir`, `source .venv/bin/activate` (e.g. `cd api && npm test`). Steps that use `$(...)` or backticks still disable pruning.
+- Hook command filters target only commands the pruner can shrink: `git status` and `git diff` instead of all of `git`, `python -m` instead of `python`, `go test`/`go build` and `docker build`/`docker compose`. Test runners were added: vitest, jest, phpunit, rspec, deno and mix. Other commands no longer start Node.js. Run `lean init --global` (or `lean init`) to update an installed hook.
+- `lean init` in a project no longer installs a second hook when a user-wide one exists (both copies would run on every call), and removes a project copy it finds. The project directive still says pruning is automatic.
+- The CLI loads only the modules a command needs. Measured with `npm run benchmark`: a hook call adds ~25 ms on top of Node.js start-up.
+- `lean stats` shows only measured numbers, with a per-output-type breakdown, and points to `lean audit` for the whole-session view.
+- `npm run benchmark` reports the engine time against its 5 ms budget, plus the end-to-end hook time and Node.js start-up separately. It no longer prints "Sub-3ms … confirmed" regardless of the result.
+
+### Fixed
+- Hook statistics were written to the hook process's working directory instead of the project in the hook payload, so they could land in the wrong project's `.lean/stats.json`. Writes are now atomic (temp file + rename).
+- `lean stats` showed two numbers that were never measured: "Prompt Cache Breaks: 0" and "Output Shaper Reduction: ~40%".
+- `.lean/stats.json` kept the version that created it; it now records the current version.
+- `lean symbols <directory>` reported a fixed "85%" saving; it is now computed.
+
 ## [0.2.1] - 2026-11-26
 
 ### Fixed

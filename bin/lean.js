@@ -1,18 +1,13 @@
 #!/usr/bin/env node
 
 /**
- * LeanToken CLI Entrypoint
- * Sub-10ms CLI runner for zero-latency token optimization
+ * LeanToken CLI entrypoint.
+ * Modules are required inside each command: the Claude Code hook runs this file on every
+ * matching shell call, so it must load only what the hook needs.
  */
 
-const { CommandPruner } = require('../src/core/pruner');
-const { CognitiveShaper } = require('../src/core/rules');
-const { SymbolIndexer } = require('../src/core/symbol_indexer');
-const { SessionLearner } = require('../src/core/learner');
-const { Telemetry } = require('../src/core/telemetry');
 const fs = require('fs');
 const path = require('path');
-const { spawnSync } = require('child_process');
 
 const args = process.argv.slice(2);
 const command = args[0];
@@ -20,7 +15,7 @@ const command = args[0];
 function printHelp() {
   const { version } = require('../package.json');
   console.log(`
-⚡ LeanToken v${version} - Zero-Latency AI Token Optimizer
+⚡ LeanToken v${version} - token optimizer for AI coding agents
 
 Quick start (in your project):
   lean init                  Set up the AI tools you use (auto-detected)
@@ -37,9 +32,11 @@ Setup:
 
 Daily use:
   lean prune <command...>    Run a command and prune its output (raw log kept in .lean/logs/)
-  lean symbols <file|dir>    Extract clean symbol signatures (<250 tokens per file)
-  lean learn [transcript]    Mine session transcripts out-of-band for MEMORY.md
-  lean stats | statusline    Token savings and latency telemetry
+  lean symbols <file|dir>    Signatures for code; headings with line ranges for Markdown
+  lean outline <file|dir>    Same as symbols
+  lean learn [transcript]    Map hot files and failing commands from Claude Code sessions into .lean/MEMORY.md
+  lean audit [--sessions=N]  Measure real sessions: what was pruned, what was skipped and why, repeated reads
+  lean stats | statusline    Measured pruning counters for this project
   lean --version | help
 `);
 }
@@ -53,6 +50,7 @@ switch (command) {
   case 'init': {
     const isGlobal = args.includes('--global') || args.includes('-g');
     const dryRun = args.includes('--dry-run');
+    const { CognitiveShaper } = require('../src/core/rules');
     const shaper = new CognitiveShaper();
     const result = shaper.init({ global: isGlobal, dryRun, only: parseOnly(), all: args.includes('--all'), hooks: !args.includes('--no-hooks') });
     if (!result.success) process.exitCode = 1;
@@ -64,6 +62,7 @@ switch (command) {
   case 'remove': {
     const isGlobal = args.includes('--global') || args.includes('-g');
     const only = parseOnly();
+    const { CognitiveShaper } = require('../src/core/rules');
     const result = new CognitiveShaper().remove({ global: isGlobal, only, purge: args.includes('--purge') });
     if (!result.success) process.exitCode = 1;
     else if (!isGlobal && !only) require('../src/core/lifecycle').untrackProject(process.cwd());
@@ -88,6 +87,9 @@ switch (command) {
       console.error('Error: specify a command to prune (e.g. lean prune git status)');
       process.exit(1);
     }
+    const { CommandPruner } = require('../src/core/pruner');
+    const { Telemetry } = require('../src/core/telemetry');
+    const { spawnSync } = require('child_process');
     const targetCmd = args.slice(1);
     const pruner = new CommandPruner();
     
@@ -107,8 +109,9 @@ switch (command) {
     const pruneRes = pruner.prune(cmdStr, rawOutput);
 
     // Save telemetry
-    Telemetry.recordPrune({
-      command: cmdStr,
+    if (pruneRes.savedTokens > 0) Telemetry.recordPrune({
+      route: pruneRes.route,
+      cwd: process.cwd(),
       rawTokens: pruneRes.rawTokens,
       prunedTokens: pruneRes.prunedTokens,
       savedTokens: pruneRes.savedTokens,
@@ -142,7 +145,9 @@ switch (command) {
     break;
   }
 
-  case 'symbols': {
+  case 'symbols':
+  case 'outline': {
+    const { SymbolIndexer } = require('../src/core/symbol_indexer');
     const targetPath = args[1];
     if (!targetPath) {
       console.error('Error: specify file or directory (e.g. lean symbols src/index.js)');
@@ -162,19 +167,31 @@ switch (command) {
 
   case 'learn': {
     const transcriptPath = args[1];
-    const learner = new SessionLearner();
-    const res = learner.learn(transcriptPath);
+    const { SessionLearner } = require('../src/core/learner');
+    const res = new SessionLearner().learn(transcriptPath);
+    if (!res.success) process.exitCode = 1;
     console.log(res.message);
     break;
   }
 
+  case 'audit': {
+    const { audit, format } = require('../src/core/audit');
+    const n = Number((args.find(a => a.startsWith('--sessions=')) || '').split('=')[1]) || 20;
+    const report = audit(process.cwd(), { sessions: n });
+    if (args.includes('--json')) console.log(JSON.stringify(report, null, 2));
+    else console.log(format(report));
+    break;
+  }
+
   case 'stats': {
+    const { Telemetry } = require('../src/core/telemetry');
     const stats = Telemetry.getStats();
     console.log(stats.formatted);
     break;
   }
 
   case 'statusline': {
+    const { Telemetry } = require('../src/core/telemetry');
     const stats = Telemetry.getStats();
     console.log(stats.statusline);
     break;

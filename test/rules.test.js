@@ -7,9 +7,10 @@ function testRulesContent() {
   const shaper = new CognitiveShaper();
   const rules = shaper.getRules();
   
-  assert(rules.includes('Surgical Minimal Diffs (YAGNI)'), 'Must include minimal diff rule');
-  assert(rules.includes('High-Density Telegraphic Responses'), 'Must include concise speak rule');
-  assert(rules.includes('Evidence-Based Grounding'), 'Must include anti-hallucination rule');
+  assert(rules.includes('Minimal Diffs (YAGNI)'), 'Must include minimal diff rule');
+  assert(rules.includes('Dense Replies'), 'Must include concise speak rule');
+  assert(rules.includes('Grounding'), 'Must include anti-hallucination rule');
+  assert(rules.includes('lean symbols <file>'), 'Must steer large reads to section maps');
   
   const tokenEst = Math.ceil(rules.length / 3.8);
   assert(tokenEst < 350, `Rules must stay under 350 tokens, got ${tokenEst}`);
@@ -45,7 +46,7 @@ function testMultiHostInit() {
     assert(res.success, res.message);
     for (const host of Object.values(HOSTS)) {
       const text = fs.readFileSync(path.join(dir, host.repo), 'utf8');
-      assert(text.includes('Unified Agent Directive (v0.2.0)'), `${host.repo} has directive`);
+      assert(text.includes('Unified Agent Directive (v0.3.0)'), `${host.repo} has directive`);
     }
     const claude = fs.readFileSync('CLAUDE.md', 'utf8');
     assert(claude.includes('Keep me.') && claude.includes('Keep me too.') && !claude.includes('v0.1.0'), 'legacy block upgraded, user content kept');

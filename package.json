@@ -1,7 +1,7 @@
 {
 	"name": "@arifahmedjoy/leantoken",
 	"version": "0.2.1",
-	"description": "Zero-latency, zero-toggle AI token compression and optimization engine for coding agents",
+	"description": "Token optimizer for AI coding agents: section maps instead of whole-file reads, pruned test/build/git output, and measured savings from real sessions",
 	"main": "src/index.js",
 	"bin": {
 		"lean": "bin/lean.js"

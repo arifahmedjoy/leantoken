@@ -1,114 +1,143 @@
 const fs = require('fs');
 const path = require('path');
+const { listTranscripts, readSession, fileReads, normalizeFile } = require('./transcripts');
+
+const HOT_READS = 3;      // a file read this often across the scanned sessions is "hot"
+const MAX_SESSIONS = 10;  // newest sessions scanned when no transcript is given
+const MAP_LINES = 25;     // outline lines kept per hot file in MEMORY.md
+const MAP_MIN_LINES = 150; // smaller files are cheap to read whole: no map
+const MAX_HOT = 10;
+const MIN_FAILS = 2;      // a command must fail this often to be worth remembering
 
 /**
- * SessionLearner: Out-of-band session transcript analyzer
- * Mines completed agent sessions for repetitive file re-reads and command errors,
- * updating .lean/MEMORY.md without in-flight API latency or runtime token overhead.
+ * SessionLearner: out-of-band transcript miner. Reads Claude Code's own session files
+ * (~/.claude/projects/<project>/*.jsonl), finds files agents keep re-reading and commands
+ * that keep failing, and writes them, with a section map per hot file, to .lean/MEMORY.md.
+ * Agents read that map instead of re-reading whole files. Runs outside any agent turn.
  */
 class SessionLearner {
   constructor(options = {}) {
-    this.memoryPath = options.memoryPath || path.join(process.cwd(), '.lean', 'MEMORY.md');
+    this.cwd = options.cwd || process.cwd();
+    this.memoryPath = options.memoryPath || path.join(this.cwd, '.lean', 'MEMORY.md');
+    this.home = options.home;
   }
 
   learn(transcriptPath) {
-    let resolvedPath = transcriptPath;
-    if (!resolvedPath) {
-      // Auto-detect common transcript locations
-      const candidates = [
-        path.join(process.cwd(), '.claude', 'history.jsonl'),
-        path.join(process.cwd(), '.lean', 'logs', 'transcript.jsonl')
-      ];
-      resolvedPath = candidates.find(c => fs.existsSync(c));
+    const files = transcriptPath ? [transcriptPath] : listTranscripts(this.cwd, this.home).slice(0, MAX_SESSIONS);
+    if (transcriptPath && !fs.existsSync(transcriptPath)) {
+      return { success: false, message: `⚡ LeanToken Learn: transcript not found: ${transcriptPath}` };
     }
-
-    if (!resolvedPath || !fs.existsSync(resolvedPath)) {
-      // Synthesize scan from existing last-command.log if available
-      return this.learnFromLocalLogs();
-    }
-
-    const lines = fs.readFileSync(resolvedPath, 'utf8').split('\n').filter(Boolean);
-    const fileReads = {};
-    const commandErrors = [];
-
-    for (const line of lines) {
-      try {
-        const entry = JSON.parse(line);
-        // Track file reads
-        if (entry.tool === 'read_file' || entry.name === 'read_file') {
-          const p = entry.args?.Path || entry.parameters?.Path;
-          if (p) fileReads[p] = (fileReads[p] || 0) + 1;
-        }
-        // Track command failures
-        if (entry.tool === 'run_command' && entry.exitCode && entry.exitCode !== 0) {
-          commandErrors.push({
-            cmd: entry.args?.CommandLine || '',
-            code: entry.exitCode,
-            error: entry.output?.slice(0, 150)
-          });
-        }
-      } catch {
-        // Skip unparseable lines
-      }
-    }
-
-    return this.updateMemory(fileReads, commandErrors);
-  }
-
-  learnFromLocalLogs() {
-    const logDir = path.join(process.cwd(), '.lean', 'logs');
-    if (!fs.existsSync(logDir)) {
+    if (!files.length) {
       return {
         success: true,
-        message: '⚡ LeanToken Learn: No prior session transcripts found. Run coding sessions to populate.'
+        hotFilesCount: 0,
+        errorsCount: 0,
+        message: '⚡ LeanToken Learn: no Claude Code sessions found for this project yet (~/.claude/projects/<project>/). Run a session, then `lean learn`.'
       };
     }
 
-    const files = fs.readdirSync(logDir);
-    return {
-      success: true,
-      message: `⚡ LeanToken Learn: Scanned ${files.length} spooled session logs. MEMORY.md is up to date.`
-    };
+    const reads = {};
+    const errors = {};
+    for (const f of files) {
+      const s = readSession(f);
+      const calls = s.calls.length ? s.calls : this.legacyCalls(f);
+      for (const c of calls) {
+        for (const r of fileReads(c)) {
+          const key = normalizeFile(r.file, this.cwd);
+          reads[key] = (reads[key] || 0) + 1;
+        }
+        if (c.isError && (c.name === 'Bash' || c.name === 'PowerShell')) {
+          const cmd = (c.input.command || '').split('\n')[0].slice(0, 100);
+          const e = errors[cmd] || (errors[cmd] = { cmd, count: 0, error: '' });
+          e.count++;
+          e.error = (c.output || '').split('\n').find(l => l.trim() && !/^Exit code \d+$/.test(l.trim())) || '';
+        }
+      }
+    }
+    const commandErrors = Object.values(errors)
+      .filter(e => e.count >= MIN_FAILS)
+      .sort((a, b) => b.count - a.count)
+      .map(e => ({ cmd: e.cmd, code: `${e.count}×`, error: e.error.slice(0, 150) }));
+    return this.updateMemory(reads, commandErrors, files.length);
   }
 
-  updateMemory(fileReads, commandErrors) {
+  /** Older generic format: one JSON object per line with tool/name and args. */
+  legacyCalls(file) {
+    const calls = [];
+    let text = '';
+    try { text = fs.readFileSync(file, 'utf8'); } catch { return calls; }
+    for (const line of text.split('\n')) {
+      try {
+        const e = JSON.parse(line);
+        if (e.tool === 'read_file' || e.name === 'read_file') {
+          const p = (e.args && e.args.Path) || (e.parameters && e.parameters.Path);
+          if (p) calls.push({ name: 'Read', input: { file_path: p }, output: '', isError: false });
+        }
+        if (e.tool === 'run_command' && e.exitCode) {
+          calls.push({ name: 'Bash', input: { command: (e.args && e.args.CommandLine) || '' }, output: (e.output || '').slice(0, 150), isError: true });
+        }
+      } catch {
+        // skip unparseable lines
+      }
+    }
+    return calls;
+  }
+
+  /** Section map / signatures for a hot file, or '' when it cannot be read. */
+  mapFor(file) {
+    try {
+      const full = path.isAbsolute(file) ? file : path.join(this.cwd, file);
+      if (!fs.statSync(full).isFile()) return '';
+      if (fs.readFileSync(full, 'utf8').split('\n').length < MAP_MIN_LINES) return '';
+      const { SymbolIndexer } = require('./symbol_indexer');
+      const out = new SymbolIndexer().extract(full).output.split('\n').slice(1); // drop FILE: header
+      const kept = out.slice(0, MAP_LINES);
+      if (out.length > kept.length) kept.push(`  ... ${out.length - kept.length} more (lean symbols ${file})`);
+      return kept.join('\n');
+    } catch {
+      return '';
+    }
+  }
+
+  updateMemory(fileReads, commandErrors, sessions = 1) {
     const hotFiles = Object.entries(fileReads)
-      .filter(([_, count]) => count >= 3)
-      .sort((a, b) => b[1] - a[1]);
+      .filter(([_, count]) => count >= HOT_READS)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, MAX_HOT);
 
-    let memoryContent = `# Project Memory & Learned Footguns\n<!-- Auto-generated by lean learn out-of-band -->\n\n`;
-
-    memoryContent += `## 1. Frequently Re-Read Files (Hot Context)\n`;
-    if (hotFiles.length > 0) {
+    let md = `# Project Memory (LeanToken)\n<!-- Written by \`lean learn\` from the last ${sessions} session(s). Re-run to refresh; edits here are overwritten. -->\n\n`;
+    md += `## 1. Hot files: read a section, not the whole file\n`;
+    if (hotFiles.length) {
       for (const [file, count] of hotFiles) {
-        memoryContent += `- \`${file}\`: read ${count} times in last session.\n`;
+        md += `- \`${file}\`: read ${count} times.\n`;
+        const map = this.mapFor(file);
+        if (map) md += '```\n' + map + '\n```\n';
       }
     } else {
-      memoryContent += `- No files re-read excessively.\n`;
+      md += `- No file was read ${HOT_READS}+ times.\n`;
     }
 
-    memoryContent += `\n## 2. Captured Tool / Terminal Quirks\n`;
-    if (commandErrors.length > 0) {
-      for (const err of commandErrors.slice(0, 5)) {
-        memoryContent += `- Command failed (code ${err.code}): \`${err.cmd}\`\n  Note: Check path or shell syntax before executing.\n`;
+    md += `\n## 2. Commands that failed\n`;
+    if (commandErrors.length) {
+      for (const err of commandErrors.slice(0, 8)) {
+        md += `- \`${err.cmd}\` failed (${err.code})${err.error ? `: ${err.error}` : ''}\n`;
       }
     } else {
-      memoryContent += `- No recurring command errors recorded.\n`;
+      md += `- No shell command failed ${MIN_FAILS}+ times.\n`;
     }
 
     try {
-      const dir = path.dirname(this.memoryPath);
-      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-      fs.writeFileSync(this.memoryPath, memoryContent, 'utf8');
+      fs.mkdirSync(path.dirname(this.memoryPath), { recursive: true });
+      fs.writeFileSync(this.memoryPath, md, 'utf8');
     } catch {
-      // Ignore write errors
+      return { success: false, hotFilesCount: hotFiles.length, errorsCount: commandErrors.length, message: `⚡ LeanToken Learn: could not write ${this.memoryPath}` };
     }
 
     return {
       success: true,
       hotFilesCount: hotFiles.length,
       errorsCount: commandErrors.length,
-      message: `⚡ LeanToken Learn: Analysis complete!\n  ✓ Hot files identified: ${hotFiles.length}\n  ✓ Quirk records updated: ${commandErrors.length}\n  ✓ Saved to: ${path.relative(process.cwd(), this.memoryPath) || this.memoryPath}`
+      message: `⚡ LeanToken Learn: scanned ${sessions} session(s)\n  ✓ Hot files recorded: ${hotFiles.length}\n  ✓ Failed commands recorded: ${commandErrors.length}\n  ✓ Saved to: ${path.relative(this.cwd, this.memoryPath) || this.memoryPath}`
     };
   }
 }

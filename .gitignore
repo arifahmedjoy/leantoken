@@ -22,3 +22,7 @@ Thumbs.db
 *.tar.gz
 *.7zip
 *.rar
+
+# LeanToken (removed by `lean remove`)
+.lean/
+.claude/settings.local.json

@@ -105,14 +105,20 @@ function doctor(cwd = process.cwd()) {
     const readHooks = file => {
       try { return (JSON.parse(fs.readFileSync(file, 'utf8')).hooks?.PostToolUse || []).flatMap(g => g.hooks || []).filter(h => shaper.isOurHook(h)); } catch { return []; }
     };
-    let scope = 'project';
-    let hooks = readHooks(path.join(cwd, '.claude', 'settings.local.json'));
-    if (!hooks.length) { hooks = readHooks(path.join(home, '.claude', 'settings.json')); scope = 'user-level'; }
+    const localFile = path.join(cwd, '.claude', 'settings.local.json');
+    const globalFile = path.join(home, '.claude', 'settings.json');
+    const local = readHooks(localFile);
+    const user = readHooks(globalFile);
+    if (local.length && user.length) warn.push('Claude Code hook is installed both user-wide and in this project, so outputs are pruned twice (run: lean init, which removes the project copy)');
+    const scope = local.length ? 'project' : 'user-level';
+    const hooks = local.length ? local : user;
     if (!hooks.length) warn.push('Claude Code auto-prune hook not installed (run: lean init)');
     else {
+      const fix = `lean init${scope === 'user-level' ? ' --global' : ''}`;
       const paths = [...hooks[0].command.matchAll(/"([^"]+)"/g)].map(m => m[1]);
       const missing = paths.filter(p => !fs.existsSync(p));
-      if (missing.length) bad.push(`Claude hook points to missing files: ${missing.join(', ')} (run: lean init${scope === 'user-level' ? ' --global' : ''})`);
+      if (missing.length) bad.push(`Claude hook points to missing files: ${missing.join(', ')} (run: ${fix})`);
+      else if (!shaper.claudeHookCurrent(local.length ? localFile : globalFile)) warn.push(`Claude Code auto-prune hook (${scope}): command filters are from an older version (run: ${fix})`);
       else ok.push(`Claude Code auto-prune hook (${scope}): ${hooks.length} command filters, paths valid`);
     }
   }

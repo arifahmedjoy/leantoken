@@ -31,3 +31,21 @@ jobs:
 
     - name: Run Latency SLA Benchmark
       run: node test/benchmark.js
+
+  changelog:
+    name: Changelog updated with code changes
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Code changes need a CHANGELOG.md entry
+      run: |
+        CHANGED=$(git diff --name-only "origin/${{ github.base_ref }}...HEAD")
+        echo "$CHANGED"
+        if echo "$CHANGED" | grep -qE '^(src|bin)/' && ! echo "$CHANGED" | grep -qx 'CHANGELOG.md'; then
+          echo "::error::src/ or bin/ changed but CHANGELOG.md did not. Add an entry under ## [Unreleased] (and update ROADMAP.md / docs if status or behavior changed)."
+          exit 1
+        fi

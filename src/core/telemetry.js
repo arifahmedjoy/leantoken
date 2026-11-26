@@ -1,79 +1,92 @@
 const fs = require('fs');
 const path = require('path');
 
+const { version: VERSION } = require('../../package.json');
+
 /**
- * Telemetry: High-precision token savings and latency telemetry tracker
+ * Telemetry: measured pruning counters per project, in <project>/.lean/stats.json.
+ * Every number shown is measured; nothing is estimated or hard-coded.
  */
 class Telemetry {
-  static getStatsPath() {
-    return path.join(process.cwd(), '.lean', 'stats.json');
+  static getStatsPath(cwd = process.cwd()) {
+    return path.join(cwd, '.lean', 'stats.json');
   }
 
-  static load() {
-    const statsPath = this.getStatsPath();
-    try {
-      if (fs.existsSync(statsPath)) {
-        return JSON.parse(fs.readFileSync(statsPath, 'utf8'));
-      }
-    } catch {
-      // Fallback
-    }
-
+  static empty() {
     return {
-      version: require('../../package.json').version,
+      version: VERSION,
       totalPrunes: 0,
       rawTokens: 0,
       prunedTokens: 0,
       savedTokens: 0,
       totalLatencyMs: 0,
-      lastUpdated: new Date().toISOString()
+      byRoute: {},
+      lastUpdated: null
     };
   }
 
-  static recordPrune({ command, rawTokens, prunedTokens, savedTokens, latencyMs }) {
-    const data = this.load();
+  static load(cwd) {
+    try {
+      const data = JSON.parse(fs.readFileSync(this.getStatsPath(cwd), 'utf8'));
+      return { ...this.empty(), ...data, byRoute: data.byRoute || {} };
+    } catch {
+      return this.empty();
+    }
+  }
+
+  /** `cwd` is the project the output belongs to (the hook's payload cwd), not the process cwd. */
+  static recordPrune({ route = 'other', rawTokens, prunedTokens, savedTokens, latencyMs, cwd }) {
+    const data = this.load(cwd);
+    data.version = VERSION;
     data.totalPrunes += 1;
     data.rawTokens += rawTokens;
     data.prunedTokens += prunedTokens;
     data.savedTokens += savedTokens;
     data.totalLatencyMs += latencyMs;
+    const r = data.byRoute[route] || { prunes: 0, rawTokens: 0, savedTokens: 0 };
+    r.prunes += 1;
+    r.rawTokens += rawTokens;
+    r.savedTokens += savedTokens;
+    data.byRoute[route] = r;
     data.lastUpdated = new Date().toISOString();
 
+    const file = this.getStatsPath(cwd);
     try {
-      const dir = path.dirname(this.getStatsPath());
-      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-      fs.writeFileSync(this.getStatsPath(), JSON.stringify(data, null, 2), 'utf8');
+      fs.mkdirSync(path.dirname(file), { recursive: true });
+      // Write then rename: a crash or a concurrent hook never leaves a half-written file
+      const tmp = `${file}.${process.pid}.tmp`;
+      fs.writeFileSync(tmp, JSON.stringify(data, null, 2), 'utf8');
+      fs.renameSync(tmp, file);
     } catch {
-      // Ignore write error
+      // telemetry is best-effort
     }
   }
 
-  static getStats() {
-    const data = this.load();
+  static getStats(cwd) {
+    const data = this.load(cwd);
     const avgLatency = data.totalPrunes > 0 ? (data.totalLatencyMs / data.totalPrunes).toFixed(2) : '0.00';
     const savedPct = data.rawTokens > 0 ? Math.round((data.savedTokens / data.rawTokens) * 100) : 0;
+    const routes = Object.entries(data.byRoute)
+      .sort((a, b) => b[1].savedTokens - a[1].savedTokens)
+      .map(([k, v]) => `    ${k.padEnd(12)} ${String(v.prunes).padStart(5)} prunes  ${v.savedTokens.toLocaleString().padStart(9)} tokens saved`);
 
-    const formatted = `
-════════════════════════════════════════════════════════════
-  LeanToken Telemetry Summary (Local Engine)
-════════════════════════════════════════════════════════════
-  Total Commands Pruned:   ${data.totalPrunes.toLocaleString()} executions
-  Raw Input Tokens:        ${data.rawTokens.toLocaleString()}
-  Pruned Input Tokens:     ${data.prunedTokens.toLocaleString()}
-  Tokens Saved:            ${data.savedTokens.toLocaleString()} (-${savedPct}%)
-  Average Engine Overhead: ${avgLatency} ms (illustrative proxy baseline: 1,840 ms)
-  Prompt Cache Breaks:     0 (100% prefix preservation)
-  Output Shaper Reduction: ~40% fewer output tokens
-════════════════════════════════════════════════════════════
-`.trim();
+    const formatted = [
+      '════════════════════════════════════════════════════════════',
+      '  LeanToken pruning stats (this project, measured)',
+      '════════════════════════════════════════════════════════════',
+      `  Outputs pruned:          ${data.totalPrunes.toLocaleString()}`,
+      `  Tokens before pruning:   ${data.rawTokens.toLocaleString()}`,
+      `  Tokens sent to agent:    ${data.prunedTokens.toLocaleString()}`,
+      `  Tokens saved:            ${data.savedTokens.toLocaleString()} (-${savedPct}%)`,
+      `  Pruning time (avg):      ${avgLatency} ms (excludes Node.js start-up per hook call)`,
+      ...(routes.length ? ['  By output type:', ...routes] : []),
+      '════════════════════════════════════════════════════════════',
+      '  Whole-session picture (reads, skipped outputs, tokens): lean audit'
+    ].join('\n');
 
-    const statusline = `⚡ LeanToken: -${savedPct}% tokens saved | ${avgLatency}ms avg`;
+    const statusline = `⚡ LeanToken: ${data.savedTokens.toLocaleString()} tokens saved (-${savedPct}%) in ${data.totalPrunes} prunes`;
 
-    return {
-      data,
-      formatted,
-      statusline
-    };
+    return { data, formatted, statusline };
   }
 }
 

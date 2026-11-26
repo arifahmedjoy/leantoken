@@ -24,6 +24,8 @@ lean init
 lean doctor
 lean prune git status
 lean symbols src/core/pruner.js
+lean symbols docs/spec.md
+lean audit
 lean learn
 lean stats
 lean remove
@@ -41,7 +43,9 @@ lean uninstall
   `.windsurf/rules/leantoken.md`, `.clinerules/leantoken.md`,
   `.junie/guidelines.md`. For Claude Code, `init` also installs the auto-prune
   hook in `.claude/settings.local.json`, and adds that file and `.lean/` to
-  `.gitignore`.
+  `.gitignore`. If the hook is already installed user-wide
+  (`~/.claude/settings.json`), no project copy is installed, and an existing
+  project copy is removed: two copies would prune every output twice.
   - Re-running upgrades the directive in place (between `leantoken:start/end`
     markers) and keeps the content around it. It also deletes files LeanToken
     created earlier for tools that are no longer used, but only when they hold
@@ -65,24 +69,52 @@ lean uninstall
   list is kept in your OS config folder) and for user-level config, then prints
   the command that removes the CLI itself.
 - `hook claude` is called by Claude Code's hook, not by people. It prunes test
-  runs, builds and installs, `git status`, `git diff` and directory listings
-  run as a single command, and leaves all other output untouched. If the agent
+  runs, builds and installs, `git status`, `git diff` and directory listings,
+  and leaves all other output untouched. The command may be preceded by steps
+  that print nothing: `cd`, `pushd`, `export X=..`, `$env:X = ..`, `mkdir`, and
+  `source <venv>/bin/activate`. For example, `cd api && npm test` is pruned.
+  Pipes, `;`/`&&` chains with other commands, and `$(...)` leave the output
+  untouched. Claude Code starts the hook only for commands the pruner can
+  shrink, such as `npm`, `pytest`, `git status`, `git diff`, `python -m` and
+  `docker build`. It does not start it for `cat`, `grep` or `python script.py`,
+  so those cost no extra time. If the agent
   opens the raw log of the same kind of command twice, that command is no
   longer pruned in the project (recorded in `.lean/learned.json`).
 - `prune <command...>` runs a command and condenses its output. When something
   was removed, the original is saved to `.lean/logs/<time>-<command>.log` and
   named in the output's footer. Only the 20 newest logs are kept. Accumulated
-  statistics are stored in `.lean/stats.json`.
-- `symbols <file|directory>` extracts lightweight outlines for JavaScript and
-  TypeScript, Python, PHP, Java, C#, Go, Rust, Ruby, Kotlin, Swift, and C/C++.
+  statistics are stored in the project's `.lean/stats.json`.
+- `symbols <file|directory>` (alias `outline`) extracts lightweight outlines
+  for JavaScript and TypeScript, Python, PHP, Java, C#, Go, Rust, Ruby, Kotlin,
+  Swift, and C/C++. For Markdown it prints the heading tree with each
+  section's line range and size, for example
+  `L40-128 ## 4. Architecture (~2.8k tok)`. Headings inside code fences are
+  ignored, and documents with more than 60 headings show levels 1-3. Read one
+  section with `sed -n 40,128p file` or the Read tool's offset/limit.
   Other individual files use a generic line-based summary. A directory scan
   includes supported files in that directory, not nested directories. These
   lightweight outlines are best-effort and may miss complex or multiline
   declarations; they are not compiler-grade parsers.
-- `learn [transcript]` analyzes a JSON Lines transcript and writes learned
-  patterns to `.lean/MEMORY.md`. Without a path, it checks the supported
-  transcript locations in the current working directory.
-- `stats` and `statusline` display the local pruning counters.
+- `learn [transcript]` reads the project's 10 newest Claude Code sessions from
+  `~/.claude/projects/<project>/` (or `$CLAUDE_CONFIG_DIR/projects/`), or one
+  given `.jsonl` file. It writes `.lean/MEMORY.md` with:
+  - the files read 3+ times, each with its section map or signatures;
+  - the shell commands that failed, with how often and the first error line.
+
+  The directive tells agents to use these maps instead of re-reading files.
+  Re-run it to refresh; the file is overwritten.
+- `audit [--sessions=N] [--json]` measures the newest N (default 20) Claude
+  Code sessions of this project. It reports:
+  - model tokens;
+  - shell output, how much the hook pruned, and why each other output was not
+    pruned;
+  - file reads, identical re-reads, and whole-file reads over 8k characters;
+  - the most-read files.
+
+  Token counts use the pruner's ~3.8 characters-per-token estimate. Model
+  tokens come from the sessions' own usage records.
+- `stats` and `statusline` display this project's measured pruning counters,
+  split by output type.
 
 The CLI's current command list and option handling are authoritative; check
 `node bin/lean.js help` if documentation and the implementation differ.

@@ -1,6 +1,8 @@
 /**
- * LeanToken High-Precision Microsecond Latency Benchmark
- * Validates that pruning overhead strictly remains under 3.00 ms (P99 < 5.00 ms)
+ * LeanToken latency benchmark.
+ * 1. Engine: prune() on `git status` output, including the raw-log write. Fails if the average exceeds 5 ms.
+ * 2. Hook end to end: what one Claude Code hook call costs (Node start-up + module load + prune), reported
+ *    next to a bare `node -e 0` start so the share LeanToken adds is visible. Not a pass/fail gate: it depends on the machine.
  */
 const { CommandPruner } = require('../src/core/pruner');
 // Raw logs go to a temp dir: tests must not write into the repository
@@ -68,13 +70,21 @@ console.log(`  Average:        ${avg} ms`);
 console.log(`  Median (p50):   ${p50} ms`);
 console.log(`  90th %ile:      ${p90} ms`);
 console.log(`  99th %ile:      ${p99} ms`);
-console.log(`  Proxy Baseline: 1,840.00 ms (illustrative comparison)`);
-console.log(`  Ratio:          ${(1840 / avg).toFixed(1)}x lower pruning overhead`);
 console.log('════════════════════════════════════════════════════════════');
 
 if (parseFloat(avg) > 5.0) {
-  console.error(`❌ LATENCY SLA BREACH: Average ${avg}ms exceeds 5.0ms budget`);
+  console.error(`❌ LATENCY BUDGET BREACH: engine average ${avg}ms exceeds the 5.0ms budget`);
   process.exit(1);
-} else {
-  console.log('  ✓ LATENCY SLA VALIDATED: Sub-3ms engine performance confirmed');
 }
+console.log(`  ✓ Engine within budget: average ${avg}ms (budget 5.0ms)`);
+
+// End-to-end hook cost, as Claude Code pays it per matching shell call
+const { spawnSync } = require('child_process');
+const path = require('path');
+const lean = path.join(__dirname, '..', 'bin', 'lean.js');
+const payload = JSON.stringify({ cwd: LOG_DIR, tool_name: 'Bash', tool_input: { command: 'git status' }, tool_response: { stdout: sampleGitStatus.repeat(4), stderr: '' } });
+const median = run => { const t = []; for (let i = 0; i < 7; i++) { const s = process.hrtime.bigint(); run(); t.push(Number(process.hrtime.bigint() - s) / 1e6); } return t.sort((a, b) => a - b)[3]; };
+const bare = median(() => spawnSync(process.execPath, ['-e', '0']));
+const hook = median(() => spawnSync(process.execPath, [lean, 'hook', 'claude'], { input: payload }));
+console.log(`  Hook call end to end (median of 7): ${hook.toFixed(0)}ms, of which Node.js start-up ${bare.toFixed(0)}ms`);
+console.log(`  LeanToken's own share per hook call: ~${Math.max(0, hook - bare).toFixed(0)}ms`);
