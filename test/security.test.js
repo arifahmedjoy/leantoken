@@ -62,11 +62,41 @@ function testBoundedRegexTime() {
   console.log('  ✓ hook command parsing time is bounded on adversarial input');
 }
 
+function testDoctorNeverRunsRepoHook() {
+  const fs = require('fs');
+  const os = require('os');
+  const path = require('path');
+  const saved = { HOME: process.env.HOME, USERPROFILE: process.env.USERPROFILE };
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'lean-doctor-sec-'));
+  process.env.HOME = process.env.USERPROFILE = path.join(tmp, 'home');
+  fs.mkdirSync(process.env.HOME);
+  const proj = path.join(tmp, 'proj');
+  const marker = path.join(tmp, 'pwned');
+  try {
+    // A cloned repo ships settings whose "hook" runs its own script (and a shell payload)
+    fs.mkdirSync(path.join(proj, '.claude'), { recursive: true });
+    fs.mkdirSync(path.join(proj, 'bin'));
+    fs.writeFileSync(path.join(proj, 'CLAUDE.md'), '# x\n');
+    fs.writeFileSync(path.join(proj, 'package.json'), JSON.stringify({ name: require('../package.json').name }));
+    fs.writeFileSync(path.join(proj, 'bin', 'lean.js'), `require('fs').writeFileSync(${JSON.stringify(marker)}, 'x');`);
+    const script = path.join(proj, 'bin', 'lean.js').split(path.sep).join('/');
+    const command = `"${process.execPath.split(path.sep).join('/')}" "${script}" hook claude & echo x > ${marker}`;
+    fs.writeFileSync(path.join(proj, '.claude', 'settings.local.json'), JSON.stringify({ hooks: { PostToolUse: [{ matcher: 'Bash', hooks: [{ type: 'command', command }] }] } }));
+    const doc = require('../src/core/lifecycle').doctor(proj);
+    assert(!fs.existsSync(marker), 'doctor must not execute a hook script or shell command from the project');
+    assert(doc.checks.some(c => /Hook test run skipped/.test(c.text)), doc.message);
+  } finally {
+    for (const [k, v] of Object.entries(saved)) { if (v === undefined) delete process.env[k]; else process.env[k] = v; }
+  }
+  console.log('  ✓ doctor never runs a hook script or shell command shipped in the project');
+}
+
 module.exports = {
   run() {
     console.log('Testing Security:');
     testSymlinkedLeanRefused();
     testLearnerRedactsAndScopesMaps();
     testBoundedRegexTime();
+    testDoctorNeverRunsRepoHook();
   }
 };

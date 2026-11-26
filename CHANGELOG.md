@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `lean doctor --fix` runs each distinct `lean` fix command that doctor found (such as `lean init` or `lean init --global`), lists other fixes (such as `npm i -g`) for you to run, then runs doctor again.
+- `lean doctor --json` prints the checks as JSON (`success`, `summary`, `checks` with section, level, text and fix).
+- Colour in human-facing output (`help`, `doctor`, `init`, `remove`, `uninstall`, `learn`, `audit`, `stats`): green ✓, yellow !, red ✗, cyan commands, bold numbers. Colour is on only when stdout is a terminal, so piped output that agents read (`prune`, `hook`, `symbols`, `statusline`) stays plain and costs no extra tokens. `NO_COLOR` or `--no-color` turns it off and `FORCE_COLOR=1` turns it on. The text is identical with and without colour.
+
+### Changed
+- `lean doctor` groups checks into sections (Environment, AI tools and directives, Claude Code hook, This project) and ends with a pass/warning/fail summary and the commands to fix them. New checks:
+  - all three Claude Code hook events (`PostToolUse`, `PreToolUse` read guard, `SessionStart` auto-learn), not only `PostToolUse`;
+  - a test run of the installed hook with an output too small to prune. It reports the measured round trip, including Node.js start-up, and fails when the hook exits non-zero or prints non-JSON. For safety, doctor never runs the stored command through a shell. It runs the hook's `lean.js` with the current Node.js, and only when that file is part of a LeanToken install outside the project. Otherwise the test is skipped, so a cloned repository's `.claude/settings.local.json` cannot make `lean doctor` run its code;
+  - how old `.lean/MEMORY.md` is, or a warning when it is missing;
+  - this project's measured pruning totals from `.lean/stats.json`;
+  - a warning when the project has a directive but is not in the uninstall registry.
+
 ## [0.4.1] - 2026-11-26
 
 ### Fixed

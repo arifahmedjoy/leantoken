@@ -41,6 +41,20 @@ function testInstallUninstallRoundTrip() {
     process.chdir(projects[0]);
     const doc = life.doctor(projects[0]);
     assert(doc.message.includes('auto-prune hook') && doc.message.includes('directive current'), doc.message);
+    assert(doc.success && doc.summary.bad === 0, doc.message);
+    assert(doc.checks.some(c => c.section === 'Claude Code hook' && /Hook test run: responded/.test(c.text)), 'installed hook is run once and answers');
+    assert(doc.checks.some(c => /PreToolUse hook/.test(c.text) && c.level === 'ok') && doc.checks.some(c => /SessionStart hook/.test(c.text) && c.level === 'ok'), 'every hook event checked');
+    assert(doc.checks.filter(c => c.level !== 'ok').every(c => !c.fix || /^(lean|npm) /.test(c.fix)), 'fixes are runnable commands');
+
+    const style = require('../src/core/style');
+    const plain = style.make(false);
+    assert.strictEqual(plain.paint(doc.message), doc.message, 'no colour: text unchanged');
+    const color = style.make(true, false);
+    const painted = color.paint(doc.message);
+    assert(painted.includes('[') && painted.replace(/\[[\d;]*m/g, '') === doc.message, 'colour adds escapes only, text identical');
+    assert(!style.enabled({ isTTY: false }, [], {}), 'piped output (agents) stays plain');
+    assert(!style.enabled({ isTTY: true }, [], { NO_COLOR: '' }) && !style.enabled({ isTTY: true }, ['--no-color'], {}), 'NO_COLOR and --no-color respected');
+    assert(style.enabled({ isTTY: false }, [], { FORCE_COLOR: '1' }), 'FORCE_COLOR respected');
 
     const res = life.uninstall({ purge: true });
     assert(res.success && /npm (rm|unlink) -g/.test(res.message), res.message);
@@ -52,7 +66,8 @@ function testInstallUninstallRoundTrip() {
     process.chdir(cwd);
     for (const [k, v] of Object.entries(saved)) { if (v === undefined) delete process.env[k]; else process.env[k] = v; }
   }
-  console.log('  ✓ init -> doctor -> uninstall round trip leaves projects exactly as they were');
+  console.log('  ✓ init -> doctor (hook test run, all events) -> uninstall round trip leaves projects exactly as they were');
+  console.log('  ✓ colour only on a TTY, text identical with and without colour');
 }
 
 module.exports = {

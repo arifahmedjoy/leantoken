@@ -20,10 +20,11 @@ Second measurement (all 323 Claude Code sessions on one machine, 19,639 API call
 
 | Release | Shipped |
 | :--- | :--- |
+| Unreleased | `lean doctor --fix` and `--json`, sectioned doctor with a test run of the installed hook and checks for every hook event, colour in human-facing output (TTY only; `NO_COLOR` respected) |
 | 0.1.0 | Command pruner (`lean prune`), directive (minimal diffs, dense replies, grounding), symbol extraction, shell hooks |
 | 0.2.0 | Auto-detected multi-tool `init`, Claude Code `PostToolUse` auto-prune hook, adaptive back-off, build/install pruning, `doctor`, `remove`, `uninstall`, changelog-gated releases |
 | 0.2.1 | `.gitignore` cleanup on `remove` |
-| Unreleased (0.4.0) | Read guard (`PreToolUse`: outline once for large whole-file reads, learns files needed whole), automatic `lean learn` at session start, line ranges in code outlines, context-cost section in `lean audit`, context size in `lean statusline`, opt-in `--context-cap`, security hardening |
+| 0.4.0 | Read guard (`PreToolUse`: outline once for large whole-file reads, learns files needed whole), automatic `lean learn` at session start, line ranges in code outlines, context-cost section in `lean audit`, context size in `lean statusline`, opt-in `--context-cap`, security hardening |
 | 0.3.0–0.3.1 | `lean audit` (measured savings), Markdown section maps, directive v0.3 "Reads" rules, `lean learn` on real Claude Code sessions, setup-prefixed commands pruned, narrower hook filters, no duplicate user + project hook, measured-only `stats`, project-scoped atomic telemetry, automated npm release workflow |
 
 ---

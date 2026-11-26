@@ -104,3 +104,4 @@ Targets are design goals. Measured values (Nov 2026, `npm run benchmark` / `lean
 | **Prefix Cache Integrity** | **100% (No Mutate)**| 96% | **+4%** |
 | **Output Token Reduction** | **35% – 50%** | -3.4% (slight increase in review) | **+40% savings** |
 | **Setup Friction** | Single command (`lean init`)| Multi-GB installer + proxy config | **Zero-toggle** |
+- Terminal colour lives in `src/core/style.js` and is applied only in `bin/lean.js`, to human-facing commands. Core modules return plain text. Colour is added only when stdout is a TTY, so hook and `prune` output that agents read never carries escape codes.

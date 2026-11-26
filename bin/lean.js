@@ -12,10 +12,12 @@ const path = require('path');
 const args = process.argv.slice(2);
 // `lean <cmd> --help` shows help instead of running <cmd>; prune and hook pass their arguments on untouched
 const command = !['prune', 'hook'].includes(args[0]) && (args.includes('--help') || args.includes('-h')) ? 'help' : args[0];
+// Colour for people at a terminal only; piped output (what agents read) stays plain
+const paint = text => require('../src/core/style').make().paint(text);
 
 function printHelp() {
   const { version } = require('../package.json');
-  console.log(`
+  console.log(paint(`
 ⚡ LeanToken v${version} - token optimizer for AI coding agents
 
 Quick start (in your project):
@@ -33,7 +35,9 @@ Setup:
   lean remove [--only=<hosts>] [--purge] [--global]
                              Undo init in this project; --purge also deletes .lean/
   lean uninstall [--purge]   Undo init everywhere, then prints the command to remove the CLI
-  lean doctor                Diagnose Node, PATH, directives, hook and logs
+  lean doctor [--fix] [--json]
+                             Diagnose Node, PATH, directives, hooks (with a live test run) and project
+                             state; --fix runs the suggested lean commands, then checks again
 
 Daily use:
   lean prune <command...>    Run a command and prune its output (raw log kept in .lean/logs/)
@@ -44,7 +48,9 @@ Daily use:
   lean audit [--sessions=N]  Measure real sessions: what was pruned, what was skipped and why, repeated reads
   lean stats | statusline    Measured pruning counters for this project
   lean --version | help
-`);
+
+Colour: on in a terminal only; NO_COLOR=1 or --no-color turns it off, FORCE_COLOR=1 forces it.
+`));
 }
 
 function parseOnly() {
@@ -62,7 +68,7 @@ switch (command) {
       contextCap: (args.find(a => a.startsWith('--context-cap=')) || '').split('=')[1] });
     if (!result.success) process.exitCode = 1;
     else if (!isGlobal && !dryRun) require('../src/core/lifecycle').trackProject(process.cwd()); // so `lean uninstall` can find it
-    console.log(result.message);
+    console.log(paint(result.message));
     break;
   }
 
@@ -73,19 +79,34 @@ switch (command) {
     const result = new CognitiveShaper().remove({ global: isGlobal, only, purge: args.includes('--purge') });
     if (!result.success) process.exitCode = 1;
     else if (!isGlobal && !only) require('../src/core/lifecycle').untrackProject(process.cwd());
-    console.log(result.message);
+    console.log(paint(result.message));
     break;
   }
 
   case 'uninstall': {
-    console.log(require('../src/core/lifecycle').uninstall({ purge: args.includes('--purge') }).message);
+    console.log(paint(require('../src/core/lifecycle').uninstall({ purge: args.includes('--purge') }).message));
     break;
   }
 
   case 'doctor': {
-    const result = require('../src/core/lifecycle').doctor();
+    const { doctor } = require('../src/core/lifecycle');
+    let result = doctor();
+    if (args.includes('--fix')) {
+      // Run each distinct `lean ...` fix once (in this same install), then check again
+      const fixes = [...new Set(result.checks.filter(c => c.level !== 'ok' && c.fix).map(c => c.fix))];
+      const runnable = fixes.filter(f => /^lean \S/.test(f));
+      if (!runnable.length) console.log(paint(fixes.length ? '⚡ LeanToken doctor --fix: nothing it can run itself' : '⚡ LeanToken doctor --fix: nothing to fix'));
+      for (const f of runnable) {
+        console.log(paint(`\n⚡ LeanToken doctor --fix: running ${f}`));
+        const r = require('child_process').spawnSync(process.execPath, [__filename, ...f.split(/\s+/).slice(1)], { stdio: 'inherit' });
+        if (r.status !== 0) console.log(paint(`  ✗ ${f} exited with ${r.status}`));
+      }
+      for (const f of fixes.filter(x => !runnable.includes(x))) console.log(paint(`  ! Run this yourself: ${f}`));
+      if (runnable.length) { console.log(''); result = doctor(); }
+    }
     if (!result.success) process.exitCode = 1;
-    console.log(result.message);
+    if (args.includes('--json')) console.log(JSON.stringify({ success: result.success, summary: result.summary, checks: result.checks }, null, 2));
+    else console.log(paint(result.message));
     break;
   }
 
@@ -181,7 +202,7 @@ switch (command) {
     const { SessionLearner } = require('../src/core/learner');
     const res = new SessionLearner().learn(transcriptPath);
     if (!res.success) process.exitCode = 1;
-    console.log(res.message);
+    console.log(paint(res.message));
     break;
   }
 
@@ -190,14 +211,14 @@ switch (command) {
     const n = Number((args.find(a => a.startsWith('--sessions=')) || '').split('=')[1]) || 20;
     const report = audit(process.cwd(), { sessions: n });
     if (args.includes('--json')) console.log(JSON.stringify(report, null, 2));
-    else console.log(format(report));
+    else console.log(paint(format(report)));
     break;
   }
 
   case 'stats': {
     const { Telemetry } = require('../src/core/telemetry');
     const stats = Telemetry.getStats();
-    console.log(stats.formatted);
+    console.log(paint(stats.formatted));
     break;
   }
 

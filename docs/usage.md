@@ -27,6 +27,7 @@ the repository. To remove the link, run `npm unlink -g`.
 lean init --dry-run
 lean init
 lean doctor
+lean doctor --fix
 lean prune git status
 lean symbols src/core/pruner.js
 lean symbols docs/spec.md
@@ -71,8 +72,17 @@ lean uninstall
     `--context-cap=off` removes the setting.
 
   See `docs/11-integration-plan.md` for which file each tool and editor reads.
-- `doctor` checks Node.js, PATH, detected tools, directive versions, the hook's
-  file paths, `.gitignore` and raw-log disk use. It exits 1 on any error.
+- `doctor [--fix] [--json]` checks Node.js, PATH, detected tools, directive
+  versions, all three Claude Code hook events and the hook's file paths, then
+  runs the installed hook once and reports its measured round trip. It also
+  checks `.gitignore`, raw-log disk use, how old `.lean/MEMORY.md` is, this
+  project's measured pruning totals and the uninstall registry. It ends with a
+  summary and the commands that fix each warning, and exits 1 on any error.
+  `--fix` runs those `lean` commands, then checks again. `--json` prints the
+  checks as JSON.
+- Output colour: human-facing commands use colour only when stdout is a
+  terminal. Piped output, which is what agents read, stays plain. `NO_COLOR=1`
+  or `--no-color` turns colour off, and `FORCE_COLOR=1` forces it on.
 - `remove [--only=<hosts>] [--purge]` undoes `init` in this project. Files go
   back to their content before `init`, files LeanToken created are deleted, and
   the hook is removed while your other Claude settings are kept. `--purge`

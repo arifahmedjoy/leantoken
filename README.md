@@ -90,7 +90,7 @@ Windows, macOS and Linux.
 npm install -g @arifahmedjoy/leantoken
 cd your-project
 lean init          # add --dry-run to preview first
-lean doctor        # confirms everything works
+lean doctor        # confirms everything works (lean doctor --fix repairs what it finds)
 ```
 
 **Daily use:**
