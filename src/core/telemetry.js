@@ -21,6 +21,7 @@ class Telemetry {
       savedTokens: 0,
       totalLatencyMs: 0,
       byRoute: {},
+      readGuard: { guards: 0, fullTokens: 0, outlineTokens: 0 },
       lastUpdated: null
     };
   }
@@ -28,7 +29,7 @@ class Telemetry {
   static load(cwd) {
     try {
       const data = JSON.parse(fs.readFileSync(this.getStatsPath(cwd), 'utf8'));
-      return { ...this.empty(), ...data, byRoute: data.byRoute || {} };
+      return { ...this.empty(), ...data, byRoute: data.byRoute || {}, readGuard: { ...this.empty().readGuard, ...data.readGuard } };
     } catch {
       return this.empty();
     }
@@ -48,10 +49,24 @@ class Telemetry {
     r.rawTokens += rawTokens;
     r.savedTokens += savedTokens;
     data.byRoute[route] = r;
-    data.lastUpdated = new Date().toISOString();
+    this.save(cwd, data);
+  }
 
+  /** The read guard denied a whole-file Read and returned the outline instead. */
+  static recordGuard({ fullTokens = 0, outlineTokens = 0, cwd }) {
+    const data = this.load(cwd);
+    data.version = VERSION;
+    data.readGuard.guards += 1;
+    data.readGuard.fullTokens += fullTokens;
+    data.readGuard.outlineTokens += outlineTokens;
+    this.save(cwd, data);
+  }
+
+  static save(cwd, data) {
+    data.lastUpdated = new Date().toISOString();
     const file = this.getStatsPath(cwd);
     try {
+      if (!safeDir(path.dirname(file), cwd || process.cwd())) return;
       fs.mkdirSync(path.dirname(file), { recursive: true });
       // Write then rename: a crash or a concurrent hook never leaves a half-written file
       const tmp = `${file}.${process.pid}.tmp`;
@@ -80,6 +95,10 @@ class Telemetry {
       `  Tokens saved:            ${data.savedTokens.toLocaleString()} (-${savedPct}%)`,
       `  Pruning time (avg):      ${avgLatency} ms (excludes Node.js start-up per hook call)`,
       ...(routes.length ? ['  By output type:', ...routes] : []),
+      ...(data.readGuard.guards ? [
+        `  Read guard (whole-file reads answered with the outline): ${data.readGuard.guards.toLocaleString()}`,
+        `    file tokens ${data.readGuard.fullTokens.toLocaleString()} → outline tokens ${data.readGuard.outlineTokens.toLocaleString()} (the agent may still read a range afterwards)`
+      ] : []),
       '════════════════════════════════════════════════════════════',
       '  Whole-session picture (reads, skipped outputs, tokens): lean audit'
     ].join('\n');
@@ -88,6 +107,84 @@ class Telemetry {
 
     return { data, formatted, statusline };
   }
+
+  /**
+   * One status line for Claude Code's statusLine command. `payload` is the JSON Claude Code pipes
+   * on stdin (object or string). Context tokens come from context_window.current_usage
+   * (input + cache write + cache read), else used_percentage × context_window_size. Never throws:
+   * without a usable payload it returns the plain pruning counters.
+   */
+  static statusline(payload) {
+    let p = payload;
+    try {
+      if (typeof p === 'string') p = p.trim() ? JSON.parse(p) : null;
+    } catch { p = null; }
+    if (!p || typeof p !== 'object') p = null;
+    let base;
+    try {
+      const dir = (p && ((p.workspace && p.workspace.project_dir) || p.cwd)) || process.cwd();
+      base = this.getStats(dir).statusline;
+    } catch {
+      base = this.getStats(process.cwd()).statusline;
+    }
+    try {
+      const cw = p && p.context_window;
+      if (!cw) return base;
+      const u = cw.current_usage;
+      let ctx = null;
+      if (u && typeof u === 'object') {
+        ctx = (u.input_tokens || 0) + (u.cache_creation_input_tokens || 0) + (u.cache_read_input_tokens || 0);
+      } else if (Number.isFinite(cw.used_percentage) && Number.isFinite(cw.context_window_size)) {
+        ctx = Math.round((cw.used_percentage / 100) * cw.context_window_size);
+      }
+      if (ctx == null) return base;
+      const over = ctx > 200000 || p.exceeds_200k_tokens === true;
+      return `ctx ${Math.round(ctx / 1000)}k${over ? ' ⚠ /compact or /clear' : ''} | ${base}`;
+    } catch {
+      return base;
+    }
+  }
+
+  /** Read piped stdin; resolves '' when stdin is a TTY or nothing arrives within `ms`. Never hangs. */
+  static readStdin(ms = 200) {
+    return new Promise(resolve => {
+      const stdin = process.stdin;
+      if (stdin.isTTY) return resolve('');
+      let buf = '';
+      let done = false;
+      const finish = () => {
+        if (done) return;
+        done = true;
+        clearTimeout(timer);
+        try { stdin.pause(); stdin.destroy(); } catch { /* ignore */ }
+        resolve(buf);
+      };
+      // No data within `ms`: give up. Data arriving: allow up to 1s for the rest.
+      let timer = setTimeout(finish, ms);
+      try {
+        stdin.setEncoding('utf8');
+        // Hard limits: Claude Code's statusline must never wait on us, and the payload is small JSON
+        setTimeout(finish, ms + 1000).unref();
+        stdin.on('data', d => { buf += d; if (buf.length > 256 * 1024) { buf = ''; finish(); return; } clearTimeout(timer); timer = setTimeout(finish, 1000); });
+        stdin.on('end', finish);
+        stdin.on('error', finish);
+      } catch { finish(); }
+    });
+  }
 }
 
-module.exports = { Telemetry };
+/**
+ * True when every existing folder from `base` down to `dir` is a real directory, not a symlink or junction.
+ * A cloned repo could commit `.lean` as a link to redirect LeanToken's writes (and log deletions) elsewhere.
+ */
+function safeDir(dir, base = path.dirname(dir)) {
+  let d = path.resolve(dir);
+  const stop = path.resolve(base);
+  for (;;) {
+    try { if (!fs.lstatSync(d).isDirectory()) return false; } catch { /* missing: mkdir makes a real one */ }
+    if (d === stop || path.dirname(d) === d) return true;
+    d = path.dirname(d);
+  }
+}
+
+module.exports = { Telemetry, safeDir };

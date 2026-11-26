@@ -27,6 +27,9 @@ Setup:
   lean init [--only=<hosts>|--all] [--no-hooks] [--dry-run] [--global]
                              hosts: claude,agents,gemini,copilot,cursor,windsurf,cline,junie
                              aliases: codex,opencode (agents), antigravity (gemini), vscode (copilot)
+  lean init --global --context-cap=<tokens|off>
+                             Opt-in: Claude Code compacts at <tokens> (e.g. 200000) instead of near
+                             the model's full window (sets CLAUDE_CODE_AUTO_COMPACT_WINDOW)
   lean remove [--only=<hosts>] [--purge] [--global]
                              Undo init in this project; --purge also deletes .lean/
   lean uninstall [--purge]   Undo init everywhere, then prints the command to remove the CLI
@@ -34,9 +37,10 @@ Setup:
 
 Daily use:
   lean prune <command...>    Run a command and prune its output (raw log kept in .lean/logs/)
-  lean symbols <file|dir>    Signatures for code; headings with line ranges for Markdown
+  lean symbols <file|dir>    Signatures (code) or headings (Markdown), each with its line range
   lean outline <file|dir>    Same as symbols
   lean learn [transcript]    Map hot files and failing commands from Claude Code sessions into .lean/MEMORY.md
+                             (the Claude Code hook also refreshes it at session start)
   lean audit [--sessions=N]  Measure real sessions: what was pruned, what was skipped and why, repeated reads
   lean stats | statusline    Measured pruning counters for this project
   lean --version | help
@@ -54,7 +58,8 @@ switch (command) {
     const dryRun = args.includes('--dry-run');
     const { CognitiveShaper } = require('../src/core/rules');
     const shaper = new CognitiveShaper();
-    const result = shaper.init({ global: isGlobal, dryRun, only: parseOnly(), all: args.includes('--all'), hooks: !args.includes('--no-hooks') });
+    const result = shaper.init({ global: isGlobal, dryRun, only: parseOnly(), all: args.includes('--all'), hooks: !args.includes('--no-hooks'),
+      contextCap: (args.find(a => a.startsWith('--context-cap=')) || '').split('=')[1] });
     if (!result.success) process.exitCode = 1;
     else if (!isGlobal && !dryRun) require('../src/core/lifecycle').trackProject(process.cwd()); // so `lean uninstall` can find it
     console.log(result.message);
@@ -136,8 +141,12 @@ switch (command) {
     // Called by agent hosts (e.g. Claude Code PostToolUse). Always exits 0: a hook must never block the agent.
     if (args[1] === 'claude') {
       try {
-        const { claudePostToolUse } = require('../src/core/hooks');
-        const out = claudePostToolUse(JSON.parse(fs.readFileSync(0, 'utf8')));
+        const hooks = require('../src/core/hooks');
+        const payload = JSON.parse(fs.readFileSync(0, 'utf8'));
+        const event = payload && payload.hook_event_name;
+        const out = event === 'PreToolUse' ? hooks.claudePreToolUse(payload)
+          : event === 'SessionStart' ? (hooks.claudeSessionStart(payload), null)
+            : hooks.claudePostToolUse(payload);
         if (out) process.stdout.write(JSON.stringify(out));
       } catch {
         // fail-open
@@ -193,9 +202,11 @@ switch (command) {
   }
 
   case 'statusline': {
+    // Claude Code pipes a JSON payload on stdin; a TTY or silence falls back to the counters
     const { Telemetry } = require('../src/core/telemetry');
-    const stats = Telemetry.getStats();
-    console.log(stats.statusline);
+    Telemetry.readStdin(200)
+      .then(input => console.log(Telemetry.statusline(input)))
+      .catch(() => console.log(Telemetry.getStats().statusline));
     break;
   }
 

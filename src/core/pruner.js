@@ -35,6 +35,8 @@ class CommandPruner {
   /** Save raw output to a per-run log and keep only the newest MAX_LOGS. Returns the path or null. */
   spool(command, rawOutput) {
     try {
+      const { safeDir } = require('./telemetry');
+      if (!safeDir(this.logDir, path.dirname(path.dirname(this.logDir)))) return null; // .lean or logs is a link
       fs.mkdirSync(this.logDir, { recursive: true });
       const slug = CommandPruner.logSlug(command);
       const file = path.join(this.logDir, `${Date.now()}-${slug}.log`);

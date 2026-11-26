@@ -8,6 +8,13 @@ const END = '<!-- leantoken:end -->';
 const LEGACY_HEADER = '# LeanToken Unified Agent Directive (v0.1.0)';
 const LEGACY_LAST_LINE = 'Full unpruned command logs are stored at';
 const fwd = p => p.split(path.sep).join('/');
+
+/** Write JSON via a temp file and rename, so a crash or a concurrent writer never leaves a half-written settings file. */
+function writeJsonAtomic(file, data) {
+  const tmp = `${file}.${process.pid}.tmp`;
+  fs.writeFileSync(tmp, JSON.stringify(data, null, 2) + '\n', 'utf8');
+  fs.renameSync(tmp, file);
+}
 const LEAN_JS = fwd(path.resolve(__dirname, '..', '..', 'bin', 'lean.js'));
 const HOOK_MARK = 'hook claude';
 // Version of the directive text, not of the package: bump only when the text changes,
@@ -237,6 +244,18 @@ ${END}
     ];
   }
 
+  /** Every hook event LeanToken registers: PostToolUse pruning, the PreToolUse read guard, SessionStart auto-learn. */
+  hookEvents() {
+    const command = `"${fwd(process.execPath)}" "${LEAN_JS}" ${HOOK_MARK}`;
+    return {
+      PostToolUse: this.hookGroups(),
+      // Whole-file reads of large files get the outline once (the hook skips ranged and small reads itself)
+      PreToolUse: [{ matcher: 'Read', hooks: [{ type: 'command', command, timeout: 10 }] }],
+      // Refreshes .lean/MEMORY.md in the background; prints nothing, so no context is added
+      SessionStart: [{ hooks: [{ type: 'command', command, timeout: 10 }] }]
+    };
+  }
+
   isOurHook(h) {
     return h && typeof h.command === 'string' && h.command.includes(HOOK_MARK) && /lean/.test(h.command);
   }
@@ -254,8 +273,8 @@ ${END}
 
   hasClaudeHook(settingsPath) {
     try {
-      const list = (this.readSettings(settingsPath).hooks || {}).PostToolUse || [];
-      return list.some(g => (g.hooks || []).some(h => this.isOurHook(h)));
+      const hooks = this.readSettings(settingsPath).hooks || {};
+      return Object.values(hooks).some(list => Array.isArray(list) && list.some(g => (g.hooks || []).some(h => this.isOurHook(h))));
     } catch {
       return false;
     }
@@ -265,42 +284,74 @@ ${END}
   claudeHookCurrent(settingsPath) {
     const filters = groups => groups.map(g => `${g.matcher}:${(g.hooks || []).filter(h => this.isOurHook(h)).map(h => h.if).join(',')}`).join('|');
     try {
-      const list = (this.readSettings(settingsPath).hooks || {}).PostToolUse || [];
-      const ours = list.filter(g => (g.hooks || []).some(h => this.isOurHook(h)));
-      return filters(ours) === filters(this.hookGroups());
+      const hooks = this.readSettings(settingsPath).hooks || {};
+      return Object.entries(this.hookEvents()).every(([event, wanted]) =>
+        filters((hooks[event] || []).filter(g => (g.hooks || []).some(h => this.isOurHook(h)))) === filters(wanted));
     } catch {
       return false;
     }
   }
 
-  /** Merge the PostToolUse prune hook into a Claude Code settings file. Returns 'added' | 'updated' | 'unchanged' | 'error'. */
+  /** Merge LeanToken's hooks (all events) into a Claude Code settings file. Returns 'added' | 'updated' | 'unchanged' | 'error'. */
   installClaudeHook(settingsPath) {
     let settings;
     try { settings = this.readSettings(settingsPath); } catch { return 'error'; }
     settings.hooks = settings.hooks || {};
-    const current = settings.hooks.PostToolUse || [];
-    const ours = current.filter(g => (g.hooks || []).some(h => this.isOurHook(h)));
-    const wanted = this.hookGroups();
-    if (JSON.stringify(ours) === JSON.stringify(wanted)) return 'unchanged';
-    settings.hooks.PostToolUse = this.withoutOurHooks(current).concat(wanted);
+    let had = false;
+    let changed = false;
+    for (const [event, wanted] of Object.entries(this.hookEvents())) {
+      const current = settings.hooks[event] || [];
+      const ours = current.filter(g => (g.hooks || []).some(h => this.isOurHook(h)));
+      if (ours.length) had = true;
+      if (JSON.stringify(ours) === JSON.stringify(wanted)) continue;
+      settings.hooks[event] = this.withoutOurHooks(current).concat(wanted);
+      changed = true;
+    }
+    if (!changed) return 'unchanged';
     fs.mkdirSync(path.dirname(settingsPath), { recursive: true });
-    fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2) + '\n', 'utf8');
-    return ours.length ? 'updated' : 'added';
+    writeJsonAtomic(settingsPath, settings);
+    return had ? 'updated' : 'added';
+  }
+
+  /**
+   * Set or clear Claude Code's auto-compact window in a settings file's `env`.
+   * `cap` is a token count (>= 100000) or 'off'/0 to remove it. Returns a status string.
+   */
+  setContextCap(settingsPath, cap) {
+    const off = cap === 'off' || cap === '0' || cap === 0;
+    const n = Number(String(cap).replace(/k$/i, '000'));
+    if (!off && !(Number.isInteger(n) && n >= 100000)) return 'error: use a token count of at least 100000 (e.g. 200000) or off';
+    let settings;
+    try { settings = this.readSettings(settingsPath); } catch { return 'error: settings file is not valid JSON'; }
+    settings.env = settings.env || {};
+    if (off) {
+      if (!('CLAUDE_CODE_AUTO_COMPACT_WINDOW' in settings.env)) return 'not set';
+      delete settings.env.CLAUDE_CODE_AUTO_COMPACT_WINDOW;
+      if (!Object.keys(settings.env).length) delete settings.env;
+    } else {
+      if (settings.env.CLAUDE_CODE_AUTO_COMPACT_WINDOW === String(n)) return `${n} tokens (unchanged)`;
+      settings.env.CLAUDE_CODE_AUTO_COMPACT_WINDOW = String(n);
+    }
+    fs.mkdirSync(path.dirname(settingsPath), { recursive: true });
+    writeJsonAtomic(settingsPath, settings);
+    return off ? 'removed' : `${n} tokens`;
   }
 
   removeClaudeHook(settingsPath) {
     let settings;
     try { settings = this.readSettings(settingsPath); } catch { return false; }
-    const list = settings.hooks && settings.hooks.PostToolUse;
-    if (!list || !list.some(g => (g.hooks || []).some(h => this.isOurHook(h)))) return false;
-    settings.hooks.PostToolUse = this.withoutOurHooks(list);
-    if (!settings.hooks.PostToolUse.length) delete settings.hooks.PostToolUse;
+    if (!settings.hooks || !this.hasClaudeHook(settingsPath)) return false;
+    for (const event of Object.keys(settings.hooks)) {
+      if (!Array.isArray(settings.hooks[event])) continue;
+      settings.hooks[event] = this.withoutOurHooks(settings.hooks[event]);
+      if (!settings.hooks[event].length) delete settings.hooks[event];
+    }
     if (!Object.keys(settings.hooks).length) delete settings.hooks;
     if (!Object.keys(settings).length && path.basename(settingsPath) === 'settings.local.json') {
       fs.unlinkSync(settingsPath);
       try { fs.rmdirSync(path.dirname(settingsPath)); } catch { /* .claude/ still holds other files */ }
     }
-    else fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2) + '\n', 'utf8');
+    else writeJsonAtomic(settingsPath, settings);
     return true;
   }
 
@@ -398,6 +449,8 @@ ${END}
       try { hookStatus = this.installClaudeHook(settingsPath); } catch { hookStatus = 'error'; }
     }
     const hooked = ['added', 'updated', 'unchanged', 'user-wide'].includes(hookStatus);
+    // Opt-in context cap (user-wide only): Claude Code compacts once the context reaches this many tokens
+    const capStatus = isGlobal && options.contextCap != null ? this.setContextCap(settingsPath, options.contextCap) : null;
 
     const modified = [];
     const failed = [];
@@ -440,6 +493,8 @@ ${END}
     if (ephemeral && chosen.claude && options.hooks !== false) {
       out.push('  ! Run via npx, so no auto-prune hook was installed. For the hook: npm i -g @arifahmedjoy/leantoken && lean init');
     }
+    if (capStatus) out.push(`  ${capStatus.startsWith('error') ? '✗' : '✓'} Context cap (CLAUDE_CODE_AUTO_COMPACT_WINDOW): ${capStatus}`);
+    else if (options.contextCap != null && !isGlobal) out.push('  ! --context-cap applies user-wide only: run lean init --global --context-cap=<tokens>');
     if (removed.length) out.push(`  ✓ Removed unused LeanToken files: ${removed.join(', ')}`);
     if (ignored.length) out.push(`  ✓ .gitignore += ${ignored.join(', ')}`);
     if (failed.length) out.push(`  ✗ Could not write: ${failed.join(', ')}`);

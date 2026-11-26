@@ -23,11 +23,11 @@ Traditional token-compression tools may act as in-flight HTTP proxies. They inte
 ### The LeanToken Strategy
 Instead of paying a 2-second latency penalty to squeeze 1% out of uncached inputs, **LeanToken** attacks token waste at the source across four pillars:
 
-1. **Read less (section maps and symbols)**: `lean symbols <file>` gives signatures for code and, for Markdown, every section's line range and size, so agents read one section instead of the whole file. The directive tells agents to do this for files over ~300 lines.
+1. **Read less (section maps, symbols, read guard)**: `lean symbols <file>` gives every symbol (code) or section (Markdown) with its line range and size, so agents read one range instead of the whole file. In Claude Code, the read guard enforces it: a whole-file read of a large file gets the outline once; asking again reads the whole file.
 2. **Deterministic tool-output pruning (Claude Code hook / `lean prune`)**: folds noise from test runs, builds and installs, `git status`, `git diff` and listings. The raw output is always kept in `.lean/logs/`.
 3. **Dense replies**: the directive asks for telegraphic answers without preamble (output-token effect not yet measured).
 4. **Code churn discipline**: minimum viable diffs prevent context bloat over turns.
-5. **Out-of-band learning and measurement**: `lean learn` maps the files agents keep re-reading into `.lean/MEMORY.md`, and `lean audit` measures what happened in real sessions. Both run outside agent turns.
+5. **Out-of-band learning and measurement**: the session-start hook keeps `.lean/MEMORY.md` (maps of the files agents keep re-reading) up to date in the background, and `lean audit` measures what happened in real sessions, including context size, the largest cost.
 
 ### Measured results
 
@@ -38,6 +38,12 @@ From `lean audit` on a real project (8 Claude Code sessions, Nov 2026, LeanToken
 - **Hook cost**: ~25 ms per call on top of Node.js start-up (~130–200 ms on the test machines), and only for commands the pruner can shrink (`npm run benchmark`).
 
 So 0.3 targets reads first. Run `lean audit` in your own project to see where your tokens go.
+
+From all 323 Claude Code sessions on one machine (Nov 2026):
+
+- **Cache reads are ~70% of cost**: every API call re-reads the whole context. Context above 200k tokens was 40% of all cache-read tokens. That is the upper bound for the opt-in `lean init --global --context-cap=200000`, and `lean statusline` warns when you pass 200k.
+- **Read guard, replayed on those sessions**: 59 whole-file reads of large code/Markdown files would have received outlines of 13.4k tokens instead of 530.6k. In 25 of the 59, the file was edited later, so the agent needed the whole file anyway; there the guard costs one extra call.
+- **Each Read gains ~100–126 ms** (mostly Node.js start-up) for the read guard.
 
 ---
 
@@ -66,7 +72,7 @@ leantoken/
 
 | Feature                    | Traditional In-Flight Proxy              | LeanToken Approach                             |
 | :------------------------- | :--------------------------------------- | :--------------------------------------------- |
-| **Turn Latency**           | +1,100ms - 2,900ms                       | None per turn; ~25 ms + Node.js start-up per prunable shell call |
+| **Turn Latency**           | +1,100ms - 2,900ms                       | None per turn; Node.js start-up plus ~5–30 ms per prunable shell call and per Read (read guard) |
 | **Prefix Cache Integrity** | May constrain prefix mutation            | Never rewrites history; the directive is static |
 | **Output Token Reduction** | Varies by tool and workflow              | Directive asks for dense replies (not yet measured) |
 | **File Dump Waste**        | Compresses bloated files after the read  | **Avoids the read**: section maps and signatures |
@@ -92,7 +98,7 @@ lean doctor        # confirms everything works
 ```sh
 lean symbols docs/spec.md   # section map with line ranges; read only what you need
 lean audit                  # where this project's tokens went in real sessions
-lean learn                  # write maps of the most-read files to .lean/MEMORY.md
+lean learn                  # refresh .lean/MEMORY.md now (Claude Code's hook also does it at session start)
 lean stats                  # what the hook has pruned so far
 ```
 

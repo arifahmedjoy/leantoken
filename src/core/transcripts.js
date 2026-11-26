@@ -51,12 +51,19 @@ function resultText(content) {
 /**
  * Parse one session: tool calls paired with their results, token usage (each API message
  * counted once), compactions and time range. Unparseable lines are skipped.
+ * Per API call (main thread only; subagent `isSidechain` lines are skipped for usage):
+ * `contexts[i]` is its context size (input + cache write + cache read tokens) and `cacheReads[i]`
+ * its cache-read tokens. `epochStarts[e]` is the index of the first API call of compaction epoch e.
+ * Each tool call gets `apiIndex` (API calls before its result arrived) and `epoch`; see rereads().
  */
 function readSession(file) {
   const calls = [];
   const byId = new Map();
   const usage = { input: 0, cacheWrite: 0, cacheRead: 0, output: 0 };
   const seenMsg = new Set();
+  const contexts = [];
+  const cacheReads = [];
+  const epochStarts = [0];
   let compactions = 0;
   let first = null;
   let last = null;
@@ -68,14 +75,17 @@ function readSession(file) {
     let o;
     try { o = JSON.parse(line); } catch { continue; }
     if (o.timestamp) { first = first || o.timestamp; last = o.timestamp; }
-    if (o.type === 'system' && o.subtype === 'compact_boundary') compactions++;
+    if (o.type === 'system' && o.subtype === 'compact_boundary') { compactions++; epochStarts.push(contexts.length); }
     const m = o.message || {};
-    if (o.type === 'assistant' && m.usage && !seenMsg.has(m.id)) {
+    if (o.type === 'assistant' && m.usage && !o.isSidechain && !seenMsg.has(m.id)) {
       seenMsg.add(m.id);
-      usage.input += m.usage.input_tokens || 0;
-      usage.cacheWrite += m.usage.cache_creation_input_tokens || 0;
-      usage.cacheRead += m.usage.cache_read_input_tokens || 0;
-      usage.output += m.usage.output_tokens || 0;
+      const u = m.usage;
+      usage.input += u.input_tokens || 0;
+      usage.cacheWrite += u.cache_creation_input_tokens || 0;
+      usage.cacheRead += u.cache_read_input_tokens || 0;
+      usage.output += u.output_tokens || 0;
+      contexts.push((u.input_tokens || 0) + (u.cache_creation_input_tokens || 0) + (u.cache_read_input_tokens || 0));
+      cacheReads.push(u.cache_read_input_tokens || 0);
     }
     if (!Array.isArray(m.content)) continue;
     for (const b of m.content) {
@@ -88,10 +98,22 @@ function readSession(file) {
         const call = byId.get(b.tool_use_id);
         call.output = resultText(b.content);
         call.isError = !!b.is_error;
+        call.apiIndex = contexts.length;
+        call.epoch = compactions;
       }
     }
   }
-  return { file, id: path.basename(file, '.jsonl'), calls, usage, compactions, first, last };
+  return { file, id: path.basename(file, '.jsonl'), calls, usage, compactions, first, last, contexts, cacheReads, epochStarts };
+}
+
+/**
+ * How many times a tool call's output was re-sent to the model: the API calls after its result
+ * arrived, in the same compaction epoch (a compaction replaces it with a summary). 0 without a result.
+ */
+function rereads(session, call) {
+  if (call.apiIndex == null) return 0;
+  const end = session.epochStarts[call.epoch + 1] ?? session.contexts.length;
+  return Math.max(0, end - call.apiIndex);
 }
 
 const READ_CMD = /(?:^|[;&|]\s*|&&\s*)(cat|head|tail|sed\s+-n\s+\S+|less|more|Get-Content)\s+((?:"[^"]+"|'[^']+'|[^\s;&|<>]+)(?:\s+(?:"[^"]+"|'[^']+'|[^\s;&|<>-][^\s;&|<>]*))*)/g;
@@ -126,4 +148,4 @@ function normalizeFile(file, cwd) {
   return f;
 }
 
-module.exports = { projectsRoot, projectSlug, projectTranscriptDir, listTranscripts, readSession, fileReads, normalizeFile };
+module.exports = { projectsRoot, projectSlug, projectTranscriptDir, listTranscripts, readSession, rereads, fileReads, normalizeFile };

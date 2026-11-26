@@ -8,6 +8,7 @@ const learnerTest = require('./learner.test');
 const hooksTest = require('./hooks.test');
 const lifecycleTest = require('./lifecycle.test');
 const auditTest = require('./audit.test');
+const securityTest = require('./security.test');
 
 console.log('════════════════════════════════════════════════════════════');
 console.log(`  Running LeanToken Automated Test Suite (v${require('../package.json').version})`);
@@ -27,6 +28,8 @@ try {
   lifecycleTest.run();
   console.log('');
   auditTest.run();
+  console.log('');
+  securityTest.run();
   console.log('');
   console.log('════════════════════════════════════════════════════════════');
   console.log('  ✓ ALL UNIT & REGRESSION TESTS PASSED (100% SUCCESS)');

@@ -15,6 +15,23 @@ const MIN_FAILS = 2;      // a command must fail this often to be worth remember
  * that keep failing, and writes them, with a section map per hot file, to .lean/MEMORY.md.
  * Agents read that map instead of re-reading whole files. Runs outside any agent turn.
  */
+// Code and Markdown files get section maps; anything else (.env, .json, logs) could hold secrets
+const MAP_EXT = /\.(js|jsx|ts|tsx|mjs|cjs|py|php|java|cs|go|rs|rb|kt|kts|swift|c|h|cc|cpp|cxx|hh|hpp|hxx|md|mdx|markdown)$/i;
+
+/** Mask likely secrets before anything taken from a transcript is written to disk. */
+function redact(text) {
+  return String(text || '')
+    .replace(/\b(Bearer|Basic|token)\s+[A-Za-z0-9._~+\/=-]{8,}/gi, '$1 [REDACTED]')
+    .replace(/\b([A-Za-z_]*(?:KEY|TOKEN|SECRET|PASSWORD|PASSWD|PWD|AUTH)[A-Za-z_]*)\s*[=:]\s*("[^"]*"|'[^']*'|\S+)/gi, '$1=[REDACTED]')
+    .replace(/(--?(?:password|passwd|token|secret|api-key|apikey)[= ])\S+/gi, '$1[REDACTED]')
+    .replace(/(\s-p)(?!\s)\S+/g, '$1[REDACTED]')
+    .replace(/:\/\/([^:\/\s@]+):[^@\s]+@/g, '://$1:[REDACTED]@')
+    .replace(/\b(sk-[A-Za-z0-9_-]{16,}|gh[pousr]_[A-Za-z0-9]{20,}|xox[abprs]-[A-Za-z0-9-]{10,}|AKIA[0-9A-Z]{16}|eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,})/g, '[REDACTED]');
+}
+
+/** Text placed inside an inline code span: a backtick would end the span early. */
+const tick = t => String(t).replace(/`/g, "'");
+
 class SessionLearner {
   constructor(options = {}) {
     this.cwd = options.cwd || process.cwd();
@@ -47,7 +64,7 @@ class SessionLearner {
           reads[key] = (reads[key] || 0) + 1;
         }
         if (c.isError && (c.name === 'Bash' || c.name === 'PowerShell')) {
-          const cmd = (c.input.command || '').split('\n')[0].slice(0, 100);
+          const cmd = redact((c.input.command || '').split('\n')[0]).slice(0, 100);
           const e = errors[cmd] || (errors[cmd] = { cmd, count: 0, error: '' });
           e.count++;
           e.error = (c.output || '').split('\n').find(l => l.trim() && !/^Exit code \d+$/.test(l.trim())) || '';
@@ -57,7 +74,7 @@ class SessionLearner {
     const commandErrors = Object.values(errors)
       .filter(e => e.count >= MIN_FAILS)
       .sort((a, b) => b.count - a.count)
-      .map(e => ({ cmd: e.cmd, code: `${e.count}×`, error: e.error.slice(0, 150) }));
+      .map(e => ({ cmd: e.cmd, code: `${e.count}×`, error: redact(e.error).slice(0, 150) }));
     return this.updateMemory(reads, commandErrors, files.length);
   }
 
@@ -87,6 +104,9 @@ class SessionLearner {
   mapFor(file) {
     try {
       const full = path.isAbsolute(file) ? file : path.join(this.cwd, file);
+      // Only code and Markdown inside the project: a map of ~/.env or a generic file would copy its lines verbatim
+      const rel = path.relative(this.cwd, full);
+      if (!rel || rel.startsWith('..') || path.isAbsolute(rel) || !MAP_EXT.test(full)) return '';
       if (!fs.statSync(full).isFile()) return '';
       if (fs.readFileSync(full, 'utf8').split('\n').length < MAP_MIN_LINES) return '';
       const { SymbolIndexer } = require('./symbol_indexer');
@@ -120,13 +140,14 @@ class SessionLearner {
     md += `\n## 2. Commands that failed\n`;
     if (commandErrors.length) {
       for (const err of commandErrors.slice(0, 8)) {
-        md += `- \`${err.cmd}\` failed (${err.code})${err.error ? `: ${err.error}` : ''}\n`;
+        md += `- \`${tick(err.cmd)}\` failed (${err.code})${err.error ? `, first error line: \`${tick(err.error)}\`` : ''}\n`;
       }
     } else {
       md += `- No shell command failed ${MIN_FAILS}+ times.\n`;
     }
 
     try {
+      if (!require('./telemetry').safeDir(path.dirname(this.memoryPath), this.cwd)) throw new Error('.lean is a link');
       fs.mkdirSync(path.dirname(this.memoryPath), { recursive: true });
       fs.writeFileSync(this.memoryPath, md, 'utf8');
     } catch {
@@ -142,4 +163,4 @@ class SessionLearner {
   }
 }
 
-module.exports = { SessionLearner };
+module.exports = { SessionLearner, redact };

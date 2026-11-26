@@ -147,6 +147,86 @@ function testHelpNeverRunsCommand() {
   console.log('  ✓ `<command> --help` prints help without running; vscode is an alias of copilot');
 }
 
+function testContextAndRereads() {
+  const { audit, format } = require('../src/core/audit');
+  const { readSession, rereads } = require('../src/core/transcripts');
+  const project = tmp('lean-ctx-');
+  const config = tmp('lean-ctxc-');
+  const dir = path.join(config, 'projects', path.resolve(project).replace(/[^a-zA-Z0-9]/g, '-'));
+  fs.mkdirSync(dir, { recursive: true });
+  const asst = (id, cr, content = [], extra = {}) => JSON.stringify({ type: 'assistant', timestamp: '2026-01-01T00:00:00Z', ...extra, message: { id, usage: { input_tokens: 0, cache_creation_input_tokens: 0, cache_read_input_tokens: cr, output_tokens: 1 }, content } });
+  const result = (id, text) => JSON.stringify({ type: 'user', message: { content: [{ type: 'tool_result', tool_use_id: id, content: text }] } });
+  const lines = [
+    asst('m1', 100000, [{ type: 'tool_use', id: 't0', name: 'Read', input: { file_path: 'big.js' } }]),
+    asst('m1', 100000, []), // same message on a second line: counted once
+    result('t0', 'a'.repeat(3800)), // ~1000 tokens, 2 later calls in its epoch
+    asst('m2', 250000, [{ type: 'tool_use', id: 't1', name: 'Bash', input: { command: 'npm test' } }]),
+    asst('sub', 900000, [], { isSidechain: true }), // subagent usage: ignored
+    result('t1', 'b'.repeat(3800)), // ~1000 tokens, 1 later call
+    asst('m3', 300000),
+    JSON.stringify({ type: 'system', subtype: 'compact_boundary' }),
+    asst('m4', 50000),
+    asst('m5', 60000)
+  ];
+  const file = path.join(dir, 's1.jsonl');
+  fs.writeFileSync(file, lines.join('\n'));
+
+  const s = readSession(file);
+  assert.deepStrictEqual(s.contexts, [100000, 250000, 300000, 50000, 60000], 'one context per API call, sidechain skipped');
+  assert.deepStrictEqual(s.epochStarts, [0, 3]);
+  assert.strictEqual(rereads(s, s.calls[0]), 2, 'output before more calls is re-read more');
+  assert.strictEqual(rereads(s, s.calls[1]), 1);
+  assert.strictEqual(s.usage.cacheRead, 760000, 'existing usage field still summed');
+
+  const saved = process.env.CLAUDE_CONFIG_DIR;
+  process.env.CLAUDE_CONFIG_DIR = config;
+  try {
+    const r = audit(project);
+    const c = r.context;
+    assert.strictEqual(c.calls, 5);
+    assert.strictEqual(c.max, 300000);
+    assert.strictEqual(c.avg, 152000);
+    const near = (a, b) => assert(Math.abs(a - b) < 1e-9, `${a} != ${b}`);
+    near(c.shareAbove[200000], 550000 / 760000);
+    near(c.shareAbove[400000], 0);
+    near(c.capSavings[200000], 150000 / 760000); // (250k-200k) + (300k-200k)
+    near(c.capSavings[150000], 250000 / 760000); // (250k-150k) + (300k-150k)
+    assert.strictEqual(c.topSessions[0].id, 's1');
+    assert.strictEqual(c.topSessions[0].maxContext, 300000);
+    assert(r.toolCost.byTool.Read.weighted > r.toolCost.byTool.Bash.weighted, 'earlier output weighs more');
+    assert.strictEqual(r.toolCost.top[0].tool, 'Read');
+    assert.strictEqual(r.toolCost.top[0].rereads, 2);
+    const out = format(r, project);
+    assert(out.indexOf('Context (the largest cost') < out.indexOf('Shell output'), 'context section before shell output');
+    assert(/upper bound/.test(out) && out.includes('--context-cap=200000') && out.includes('/clear'), 'tip over 30% above 200k');
+  } finally {
+    if (saved === undefined) delete process.env.CLAUDE_CONFIG_DIR; else process.env.CLAUDE_CONFIG_DIR = saved;
+  }
+  console.log('  ✓ audit: context sizes, cache-read share above thresholds, cap upper bound, re-read weighting');
+}
+
+function testStatuslineAndGuard() {
+  const { Telemetry } = require('../src/core/telemetry');
+  const project = tmp('lean-sl-');
+  Telemetry.recordPrune({ route: 'test', rawTokens: 100, prunedTokens: 20, savedTokens: 80, latencyMs: 1, cwd: project });
+  Telemetry.recordGuard({ fullTokens: 5000, outlineTokens: 300, cwd: project });
+  Telemetry.recordGuard({ fullTokens: 1000, outlineTokens: 100, cwd: project });
+  const data = JSON.parse(fs.readFileSync(path.join(project, '.lean', 'stats.json'), 'utf8'));
+  assert.deepStrictEqual(data.readGuard, { guards: 2, fullTokens: 6000, outlineTokens: 400 });
+  assert.strictEqual(data.totalPrunes, 1, 'guard does not count as a prune');
+  assert(/Read guard[^\n]*2/.test(Telemetry.getStats(project).formatted) && Telemetry.getStats(project).formatted.includes('6,000'));
+
+  const big = Telemetry.statusline({ cwd: project, context_window: { current_usage: { input_tokens: 4000, cache_creation_input_tokens: 10000, cache_read_input_tokens: 200000, output_tokens: 50 } } });
+  assert(big.startsWith('ctx 214k ⚠ /compact or /clear') && big.includes('80 tokens saved'), big);
+  const small = Telemetry.statusline(JSON.stringify({ workspace: { project_dir: project }, context_window: { used_percentage: 10, context_window_size: 200000 } }));
+  assert(small.startsWith('ctx 20k |') && !small.includes('⚠'), small);
+  const plain = Telemetry.getStats(process.cwd()).statusline;
+  assert.strictEqual(Telemetry.statusline(''), plain, 'empty payload falls back');
+  assert.strictEqual(Telemetry.statusline('{not json'), plain, 'bad JSON falls back');
+  assert.strictEqual(Telemetry.statusline({ cwd: project }), Telemetry.getStats(project).statusline, 'no context_window: counters only');
+  console.log('  ✓ statusline: context tokens with a >200k warning; read guard counters measured');
+}
+
 module.exports = {
   run() {
     console.log('Testing Telemetry, Outline, Audit & Learn:');
@@ -154,6 +234,8 @@ module.exports = {
     testSetupPrefixes();
     testMarkdownOutline();
     testAuditAndLearn();
+    testContextAndRereads();
+    testStatuslineAndGuard();
     testUserWideHookNotDuplicated();
     testHelpNeverRunsCommand();
   }

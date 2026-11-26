@@ -27,34 +27,7 @@ class SymbolIndexer {
     const fullTokens = this.estimateTokens(content);
     const ext = path.extname(fullPath).toLowerCase();
 
-    let symbols = [];
-    if (['.js', '.jsx', '.ts', '.tsx', '.mjs', '.cjs'].includes(ext)) {
-      symbols = this.extractJavaScriptSymbols(content);
-    } else if (ext === '.py') {
-      symbols = this.extractPythonSymbols(content);
-    } else if (['.php', '.phtml'].includes(ext)) {
-      symbols = this.extractPhpSymbols(content);
-    } else if (['.java', '.cs'].includes(ext)) {
-      symbols = this.extractJavaLikeSymbols(content);
-    } else if (ext === '.go') {
-      symbols = this.extractGoSymbols(content);
-    } else if (ext === '.rs') {
-      symbols = this.extractRustSymbols(content);
-    } else if (ext === '.rb') {
-      symbols = this.extractRubySymbols(content);
-    } else if (['.kt', '.kts'].includes(ext)) {
-      symbols = this.extractKotlinSymbols(content);
-    } else if (ext === '.swift') {
-      symbols = this.extractSwiftSymbols(content);
-    } else if (['.c', '.h', '.cc', '.cpp', '.cxx', '.hh', '.hpp', '.hxx'].includes(ext)) {
-      symbols = this.extractJavaLikeSymbols(content);
-    } else if (['.json'].includes(ext)) {
-      symbols = this.extractJsonSchema(content);
-    } else if (['.md', '.mdx', '.markdown'].includes(ext)) {
-      symbols = this.extractMarkdownOutline(content);
-    } else {
-      symbols = this.extractGenericSymbols(content);
-    }
+    const symbols = this.symbolsFor(content, ext);
 
     const header = `FILE: ${path.basename(fullPath)} (${ext || 'text'})`;
     const symbolBody = symbols.length > 0 ? symbols.join('\n') : '  (No top-level exports or functions detected)';
@@ -72,7 +45,139 @@ class SymbolIndexer {
     };
   }
 
-  extractJavaScriptSymbols(code) {
+  /** Name of the line-based extractor for a code extension, or null. */
+  codeExtractorFor(ext) {
+    if (['.js', '.jsx', '.ts', '.tsx', '.mjs', '.cjs'].includes(ext)) return 'extractJavaScriptSymbols';
+    if (ext === '.py') return 'extractPythonSymbols';
+    if (['.php', '.phtml'].includes(ext)) return 'extractPhpSymbols';
+    if (['.java', '.cs', '.c', '.h', '.cc', '.cpp', '.cxx', '.hh', '.hpp', '.hxx'].includes(ext)) return 'extractJavaLikeSymbols';
+    if (ext === '.go') return 'extractGoSymbols';
+    if (ext === '.rs') return 'extractRustSymbols';
+    if (ext === '.rb') return 'extractRubySymbols';
+    if (['.kt', '.kts'].includes(ext)) return 'extractKotlinSymbols';
+    if (ext === '.swift') return 'extractSwiftSymbols';
+    return null;
+  }
+
+  symbolsFor(content, ext) {
+    const extractor = this.codeExtractorFor(ext);
+    if (extractor) return this.withLineRanges(content, extractor);
+    if (ext === '.json') return this.extractJsonSchema(content);
+    if (['.md', '.mdx', '.markdown'].includes(ext)) return this.extractMarkdownOutline(content);
+    return this.extractGenericSymbols(content);
+  }
+
+  /**
+   * Runs a line-based extractor one line at a time (every extractor is stateless per
+   * line and emits at most one symbol per line), so each symbol keeps its source line.
+   * Each entry gets `L<start>-<end>`: end is the line before the next symbol at the same
+   * or shallower indent (EOF for the last). Top-level entries also get their size.
+   */
+  withLineRanges(content, extractor) {
+    const lines = content.split('\n');
+    const lineCount = lines.length > 1 && lines[lines.length - 1] === '' ? lines.length - 1 : lines.length;
+    const entries = [];
+    for (let i = 0; i < lineCount; i++) {
+      if (!lines[i].trim()) continue;
+      let found = [];
+      try { found = this[extractor](lines[i], true); } catch { /* one odd line must not drop the whole outline */ }
+      for (const text of found) entries.push({ text, start: i + 1 });
+    }
+    if (extractor === 'extractJavaScriptSymbols') {
+      entries.push(...this.extractCommonJsExports(content));
+      entries.sort((a, b) => a.start - b.start);
+    }
+    if (!entries.length) return [];
+
+    // Nesting comes from source indentation (extractors mostly ignore it): an entry is
+    // a child of the closest preceding entry whose source line is indented less, so a
+    // const arrow inside a method or a fn inside a Rust impl does not end its parent.
+    const stack = [];
+    for (const e of entries) {
+      const indent = lines[e.start - 1].search(/\S/);
+      while (stack.length && stack[stack.length - 1] >= indent) stack.pop();
+      e.depth = stack.length;
+      stack.push(indent);
+    }
+    const topIndent = 0;
+    const offsets = [0];
+    for (let i = 0; i < lineCount; i++) offsets.push(offsets[i] + lines[i].length + 1);
+
+    return entries.map((e, k) => {
+      const d = e.depth;
+      let end = lineCount;
+      for (let j = k + 1; j < entries.length; j++) {
+        if (entries[j].start > e.start && entries[j].depth <= d) { end = entries[j].start - 1; break; }
+      }
+      let size = '';
+      if (d === topIndent) {
+        const tok = Math.ceil((offsets[end] - offsets[e.start - 1]) / 3.8);
+        size = ` (~${tok >= 1000 ? `${(tok / 1000).toFixed(1)}k` : tok} tok)`;
+      }
+      return `${'  '.repeat(d + 1)}L${e.start}-${end} ${e.text.trim()}${size}`;
+    });
+  }
+
+  /** CommonJS `module.exports = { a, b }` entries, each tagged with the statement's line. */
+  extractCommonJsExports(code) {
+    const out = [];
+    const match = /^module\.exports\s*=\s*\{([\s\S]*?)\};/m.exec(code);
+    if (!match) return out;
+    const start = code.slice(0, match.index).split('\n').length;
+    for (const exportedLine of match[1].split(/[\n,]/)) {
+      const exportMatch = exportedLine.trim().match(/^([A-Za-z_$][\w$]*)(?:\s*:\s*([A-Za-z_$][\w$]*))?\s*$/);
+      if (exportMatch) out.push({ text: `  export ${exportMatch[2] || exportMatch[1]}`, start });
+    }
+    return out;
+  }
+
+  /**
+   * Compact outline of one file for a read guard: single read, no directory scan.
+   * Over maxTokens it drops the deepest levels first, then cuts with "… N more".
+   * Returns null (never throws) for missing, unreadable, binary or non-code/Markdown files.
+   */
+  outlineForGuard(filePath, maxTokens = 600) {
+    try {
+      const fullPath = path.resolve(filePath);
+      const ext = path.extname(fullPath).toLowerCase();
+      if (!this.codeExtractorFor(ext) && !['.md', '.mdx', '.markdown'].includes(ext)) return null;
+      const buf = fs.readFileSync(fullPath);
+      if (buf.subarray(0, 8000).includes(0)) return null;
+      const content = buf.toString('utf8');
+      const lines = content.split('\n');
+      const lineCount = lines.length > 1 && lines[lines.length - 1] === '' ? lines.length - 1 : lines.length;
+      const header = `FILE: ${path.basename(fullPath)} (${ext}, ${lineCount} lines)`;
+      let symbols = this.symbolsFor(content, ext);
+      if (!symbols.length) symbols = ['  (No top-level exports or functions detected)'];
+
+      // Linear in the number of symbols (a running character count, never re-joined strings):
+      // a hook runs this, and untrusted repos can hold files with tens of thousands of symbols
+      const indentOf = t => Math.max(0, t.search(/\S/));
+      const maxChars = Math.floor(maxTokens * 3.8);
+      const size = arr => arr.reduce((n, x) => n + x.length + 1, header.length);
+      while (size(symbols) > maxChars) {
+        const depths = symbols.map(indentOf);
+        let deepest = 0;
+        let shallowest = Infinity;
+        for (const d of depths) { if (d > deepest) deepest = d; if (d < shallowest) shallowest = d; }
+        if (deepest === shallowest) break;
+        symbols = symbols.filter((x, i) => depths[i] < deepest);
+      }
+      if (size(symbols) > maxChars) {
+        const more = n => `  … ${n} more`.length + 1;
+        let used = header.length;
+        let keep = 0;
+        while (keep < symbols.length && used + symbols[keep].length + 1 + more(symbols.length - keep - 1) <= maxChars) used += symbols[keep++].length + 1;
+        symbols = [...symbols.slice(0, keep), `  … ${symbols.length - keep} more`];
+      }
+      const output = `${header}\n${symbols.join('\n')}`;
+      return { output, tokens: this.estimateTokens(output), fullTokens: this.estimateTokens(content), lines: lineCount };
+    } catch {
+      return null;
+    }
+  }
+
+  extractJavaScriptSymbols(code, skipExports = false) {
     const symbols = [];
     const lines = code.split('\n');
 
@@ -96,7 +201,7 @@ class SymbolIndexer {
       // Const arrow function or method export
       const arrowMatch = trimmed.match(/^(?:export\s+)?(?:const|let|var)\s+([A-Za-z0-9_$]+)\s*=\s*(?:async\s*)?(?:\(([^)]*)\)|([A-Za-z_$][\w$]*))\s*=>/);
       if (arrowMatch) {
-        symbols.push(`  const ${arrowMatch[1]} = (${(arrowMatch[2] || arrowMatch[3]).trim()}) => ...`);
+        symbols.push(`  const ${arrowMatch[1]} = (${(arrowMatch[2] ?? arrowMatch[3] ?? '').trim()}) => ...`);
         continue;
       }
 
@@ -107,14 +212,8 @@ class SymbolIndexer {
       }
     }
 
-    const moduleExportsMatch = code.match(/module\.exports\s*=\s*\{([\s\S]*?)\};/);
-    if (moduleExportsMatch) {
-      for (const exportedLine of moduleExportsMatch[1].split('\n')) {
-        const exportMatch = exportedLine.trim().match(/^([A-Za-z_$][\w$]*)(?:\s*:\s*([A-Za-z_$][\w$]*))?,?\s*$/);
-        if (exportMatch) {
-          symbols.push(`  export ${exportMatch[2] || exportMatch[1]}`);
-        }
-      }
+    if (!skipExports) {
+      for (const e of this.extractCommonJsExports(code)) symbols.push(e.text);
     }
 
     return symbols;

@@ -62,6 +62,13 @@ lean uninstall
     Antigravity), `~/.codex/AGENTS.md`, `~/.config/opencode/AGENTS.md` and
     `~/.copilot/copilot-instructions.md` when those tools are installed.
     `--only` also accepts `opencode`, `codex`, `antigravity` and `vscode` (GitHub Copilot).
+  - `--global --context-cap=<tokens>` (opt-in) sets
+    `CLAUDE_CODE_AUTO_COMPACT_WINDOW` in `~/.claude/settings.json`, so Claude
+    Code compacts once the context reaches that many tokens (at least 100000,
+    e.g. `200000` or `200k`). Every API call re-reads the whole context, so a
+    smaller window means fewer cache-read tokens per call, and more compactions.
+    `lean audit` shows the upper bound for your sessions.
+    `--context-cap=off` removes the setting.
 
   See `docs/11-integration-plan.md` for which file each tool and editor reads.
 - `doctor` checks Node.js, PATH, detected tools, directive versions, the hook's
@@ -73,7 +80,22 @@ lean uninstall
 - `uninstall [--purge]` runs `remove` in every project `init` was run in (the
   list is kept in your OS config folder) and for user-level config, then prints
   the command that removes the CLI itself.
-- `hook claude` is called by Claude Code's hook, not by people. It prunes test
+- `hook claude` is called by Claude Code's hooks, not by people. One command
+  serves three events:
+  - **Read guard** (`PreToolUse` on `Read`): a whole-file read of a code or
+    Markdown file of 20 KB–4 MB gets the file's outline (each section's line
+    range) instead, once. The agent then reads the range it needs. Reading the
+    same file whole again within 30 minutes is allowed, for example before an
+    edit. A file read whole again twice after being guarded is never guarded
+    again in that project. Small files, ranged reads, images, PDFs and
+    notebooks are never touched. State is kept in LeanToken's config folder,
+    not in your repository.
+  - **Automatic learning** (`SessionStart`): in projects with `.lean/`,
+    `.lean/MEMORY.md` is refreshed in the background when newer sessions exist
+    and it is over an hour old. Nothing is added to the agent's context.
+  - **Pruning** (`PostToolUse`), below.
+
+  The pruning hook prunes test
   runs, builds and installs, `git status`, `git diff` and directory listings,
   and leaves all other output untouched. The command may be preceded by steps
   that print nothing: `cd`, `pushd`, `export X=..`, `$env:X = ..`, `mkdir`, and
@@ -91,7 +113,8 @@ lean uninstall
   statistics are stored in the project's `.lean/stats.json`.
 - `symbols <file|directory>` (alias `outline`) extracts lightweight outlines
   for JavaScript and TypeScript, Python, PHP, Java, C#, Go, Rust, Ruby, Kotlin,
-  Swift, and C/C++. For Markdown it prints the heading tree with each
+  Swift, and C/C++. Every symbol has its line range, and top-level symbols
+  their size, for example `L13-314 class CommandPruner (~2.9k tok)`. For Markdown it prints the heading tree with each
   section's line range and size, for example
   `L40-128 ## 4. Architecture (~2.8k tok)`. Headings inside code fences are
   ignored, and documents with more than 60 headings show levels 1-3. Read one
@@ -107,19 +130,28 @@ lean uninstall
   - the shell commands that failed, with how often and the first error line.
 
   The directive tells agents to use these maps instead of re-reading files.
-  Re-run it to refresh; the file is overwritten.
+  The Claude Code hook refreshes it at session start; `lean learn` refreshes it
+  now. The file is overwritten. Only code and Markdown files inside the
+  project get maps, and likely secrets in recorded commands and errors are
+  masked.
 - `audit [--sessions=N] [--json]` measures the newest N (default 20) Claude
   Code sessions of this project. It reports:
   - model tokens;
   - shell output, how much the hook pruned, and why each other output was not
     pruned;
   - file reads, identical re-reads, and whole-file reads over 8k characters;
-  - the most-read files.
+  - the most-read files;
+  - context: average and largest context per API call, the share of
+    cache-read tokens from calls above 150k/200k/400k context, an upper bound
+    for what a context cap would remove, and tool output weighted by how many
+    later calls re-read it.
 
   Token counts use the pruner's ~3.8 characters-per-token estimate. Model
   tokens come from the sessions' own usage records.
 - `stats` and `statusline` display this project's measured pruning counters,
-  split by output type.
+  split by output type, and read-guard counters. Used as Claude Code's status
+  line, `statusline` also shows the current context size from the JSON Claude
+  Code passes on stdin, with a warning above 200k tokens.
 
 The CLI's current command list and option handling are authoritative; check
 `node bin/lean.js help` if documentation and the implementation differ.

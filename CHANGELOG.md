@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Read guard (Claude Code `PreToolUse` hook on `Read`). A whole-file Read of a code or Markdown file of 20 KB–4 MB gets the file's outline once, with each section's line range, instead of the file. Reading the same file whole again within 30 minutes is allowed, so edits (which need a full read) still work. A file read whole again twice after being guarded is never guarded again in that project. Guard state is kept in LeanToken's user config folder, not in the repository. Replayed on this machine's real sessions: 59 whole-file reads of large code/Markdown files, outlines of 13.4k tokens instead of 530.6k (2.5%). 25 of those 59 files were edited later in the same session; for those the guard costs the outline and one extra call. Measured cost: ~100–126 ms per Read, of which ~96 ms is Node.js start-up (`npm run benchmark`).
+- Automatic learning: a Claude Code `SessionStart` hook refreshes `.lean/MEMORY.md` in the background when newer sessions exist and the map is over an hour old. It runs only in projects that have `.lean/`, and prints nothing, so it adds no context.
+- `lean symbols` shows a line range for every symbol in all 11 code languages (`L13-314 class CommandPruner (~2.9k tok)`), as it already did for Markdown sections.
+- `lean audit` has a "Context" section: API calls, average and largest context, the share of cache-read tokens from calls above 150k/200k/400k context, an upper bound for capping the context, the sessions with most cache reads, and tool output weighted by how many later calls re-read it.
+- `lean statusline` reads the JSON Claude Code passes on stdin and shows the current context size, with a warning above 200k tokens (`ctx 214k ⚠ /compact or /clear`). Without input it prints the pruning counters as before.
+- `lean init --global --context-cap=<tokens|off>` (opt-in): sets `CLAUDE_CODE_AUTO_COMPACT_WINDOW` in `~/.claude/settings.json`, so Claude Code compacts at that size (at least 100000) instead of near the model's full window. Across 323 sessions on one machine, 40% of cache-read tokens were context above 200k: an upper bound for what a 200k cap removes, at the price of more compactions.
+- `lean stats` shows read-guard counters (outlines served, tokens of the files and of their outlines).
+- Security tests (`test/security.test.js`).
+
+### Changed
+- `lean init` installs three Claude Code hook events (`PostToolUse`, `PreToolUse`, `SessionStart`); `lean remove` removes all three. Run `lean init --global` (or `lean init`) to upgrade an installed hook.
+- `lean audit` and `lean learn` no longer count subagent (`isSidechain`) lines in model token totals.
+- `lean learn` masks likely secrets (bearer tokens, `*_KEY=`/`*PASSWORD=` values, `-p<password>`, URL credentials, known key formats) in recorded commands and error lines. It maps only code and Markdown files inside the project, and quotes error lines as code.
+- CI and release workflows use `actions/checkout@v5` and `actions/setup-node@v5`. The v4 actions targeted the deprecated Node.js 20 runtime.
+
+### Fixed
+- `lean symbols` crashed on JavaScript/TypeScript files containing `const x = () =>` (empty parameter list), so no outline was shown.
+- Security: LeanToken no longer writes or deletes files through a `.lean` (or `.lean/logs`) folder that is a symlink or junction, which a cloned repository could use to redirect writes. Settings files are written atomically. Hook command parsing is bounded on very long commands (a crafted `source …activate…` command took 55 s). The statusline's stdin read has a size and time limit.
+
+### Not built
+- Compacting JSON output of MCP tools: measured on 1,213 real JSON outputs, minifying saves 0.6% of their characters (0.4% of all MCP output).
+
 ## [0.3.1] - 2026-11-26
 
 ### Added

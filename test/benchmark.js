@@ -88,3 +88,20 @@ const bare = median(() => spawnSync(process.execPath, ['-e', '0']));
 const hook = median(() => spawnSync(process.execPath, [lean, 'hook', 'claude'], { input: payload }));
 console.log(`  Hook call end to end (median of 7): ${hook.toFixed(0)}ms, of which Node.js start-up ${bare.toFixed(0)}ms`);
 console.log(`  LeanToken's own share per hook call: ~${Math.max(0, hook - bare).toFixed(0)}ms`);
+
+// Read guard (PreToolUse): runs on every Read. Small and ranged reads must exit fast; a large whole read builds an outline.
+const fs = require('fs');
+const os = require('os');
+const guardDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lean-bench-guard-'));
+const bigFile = path.join(guardDir, 'big.js');
+fs.writeFileSync(bigFile, Array.from({ length: 400 }, (_, i) => `function handler${i}(req, res) {\n  return compute(req.body, res.locals, ${i});\n}\n`).join('\n'));
+// Guard state goes to the config folder: keep the benchmark's out of the user's
+const guardEnv = { ...process.env, XDG_CONFIG_HOME: fs.mkdtempSync(path.join(os.tmpdir(), 'lean-bench-cfg-')) };
+const readPayload = (input) => JSON.stringify({ hook_event_name: 'PreToolUse', cwd: guardDir, tool_name: 'Read', tool_input: input });
+const small = median(() => spawnSync(process.execPath, [lean, 'hook', 'claude'], { env: guardEnv, input: readPayload({ file_path: lean }) }));
+const ranged = median(() => spawnSync(process.execPath, [lean, 'hook', 'claude'], { env: guardEnv, input: readPayload({ file_path: bigFile, offset: 1, limit: 10 }) }));
+const guarded = median(() => {
+  spawnSync(process.execPath, [lean, 'hook', 'claude'], { env: guardEnv, input: readPayload({ file_path: bigFile }) }); // guarded
+  spawnSync(process.execPath, [lean, 'hook', 'claude'], { env: guardEnv, input: readPayload({ file_path: bigFile }) }); // retry allowed
+}) / 2;
+console.log(`  Read guard per Read (median of 7): small file ${small.toFixed(0)}ms, ranged ${ranged.toFixed(0)}ms, large whole file ${guarded.toFixed(0)}ms (Node.js start-up ${bare.toFixed(0)}ms)`);
