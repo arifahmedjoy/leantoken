@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-26
+
 ### Added
 - `lean audit [--sessions=N] [--json]`: measures a project's real Claude Code sessions (read from `~/.claude/projects/<project>/`). It reports model tokens, shell output pruned and skipped (with the reason for each), file reads, identical re-reads, large whole-file reads and the most-read files. On the first project audited (8 sessions), pruning saved 0.3% of shell output, while whole-file reads of large docs cost ~39k tokens. That finding drives the rest of this release.
 - `lean symbols` / `lean outline` on Markdown: a heading tree with each section's line range and size (e.g. `L40-128 ## 4. Architecture (~2.8k tok)`), so agents read one section instead of the file. On a 50 KB spec: 738 tokens instead of 13.6k.
@@ -77,7 +79,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `lean stats` and `lean statusline`: local token-savings telemetry.
 - Opt-in Bash and PowerShell shell hooks.
 
-[Unreleased]: https://github.com/arifahmedjoy/leantoken/compare/v0.2.1...HEAD
+[Unreleased]: https://github.com/arifahmedjoy/leantoken/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/arifahmedjoy/leantoken/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/arifahmedjoy/leantoken/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/arifahmedjoy/leantoken/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/arifahmedjoy/leantoken/releases/tag/v0.1.0
