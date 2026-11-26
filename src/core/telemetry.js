@@ -178,12 +178,16 @@ class Telemetry {
  * A cloned repo could commit `.lean` as a link to redirect LeanToken's writes (and log deletions) elsewhere.
  */
 function safeDir(dir, base = path.dirname(dir)) {
+  // Checks dir and its parents below base (base itself and system links such as macOS /var are trusted)
   let d = path.resolve(dir);
   const stop = path.resolve(base);
+  const rel = path.relative(stop, d);
+  const inside = rel && !rel.startsWith('..') && !path.isAbsolute(rel);
   for (;;) {
     try { if (!fs.lstatSync(d).isDirectory()) return false; } catch { /* missing: mkdir makes a real one */ }
-    if (d === stop || path.dirname(d) === d) return true;
-    d = path.dirname(d);
+    const up = path.dirname(d);
+    if (!inside || up === stop || up === d) return true;
+    d = up;
   }
 }
 

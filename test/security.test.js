@@ -21,6 +21,10 @@ function testSymlinkedLeanRefused() {
   assert.strictEqual(r.spoolPath, null, 'no raw log written through the link');
   Telemetry.recordPrune({ route: 'test', rawTokens: 10, prunedTokens: 1, savedTokens: 9, latencyMs: 1, cwd: repo });
   assert.deepStrictEqual(fs.readdirSync(target), [], 'nothing written in the link target');
+  // Links at or above the base (macOS /var -> /private/var, a project opened via a link) are trusted
+  const { safeDir } = require('../src/core/telemetry');
+  assert(safeDir(path.join(repo, '.lean', 'x'), path.join(repo, '.lean')), 'base itself may be a link');
+  assert(safeDir(path.join(target, 'x'), process.cwd()), 'dir outside base: parents not checked');
   console.log('  ✓ symlinked .lean: no logs, stats or deletions through the link');
 }
 

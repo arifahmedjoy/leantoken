@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- macOS: the symlink check on `.lean` writes no longer rejects links at or above the project folder (macOS `/var` → `/private/var`, a project opened through a link). `lean learn` failed in macOS CI for this reason.
+
 ## [0.4.0] - 2026-11-26
 
 ### Added
